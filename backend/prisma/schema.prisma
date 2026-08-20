@@ -1,0 +1,16 @@
+// Prisma Schema for Healthcare Appointment & Follow-up Manager
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Minimal model for schema initialization - comprehensive models added in Increment 2
+model SystemHealthCheck {
+  id        String   @id @default(uuid())
+  status    String   @default("ok")
+  checkedAt DateTime @default(now())
+}
