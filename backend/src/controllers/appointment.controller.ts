@@ -13,6 +13,7 @@ import {
   BookAppointmentInput,
 } from '../validators/appointment.validator';
 import { sendAppointmentCancellationNotifications } from '../services/email.service';
+import { syncUpdateCalendarEvent, syncDeleteCalendarEvent } from '../services/google.service';
 
 /**
  * GET /api/doctors?specialisation=X
@@ -155,12 +156,83 @@ export async function cancelAppointmentController(req: Request, res: Response): 
       console.error('Failed to send cancellation email:', err);
     });
 
+    // Best-Effort Google Calendar Deletion
+    syncDeleteCalendarEvent(updatedAppointment.id).catch((err) => {
+      console.error('Failed to delete Google Calendar event:', err);
+    });
+
     res.status(200).json({
       message: 'Appointment cancelled successfully',
       appointment: updatedAppointment,
     });
   } catch (error: any) {
     console.error('CancelAppointment Error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * POST /api/appointments/:id/reschedule
+ * Reschedules an appointment to a new slotStartTime and syncs Google Calendar.
+ */
+export async function rescheduleAppointmentController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { slotStartTime: newSlotStartTimeStr } = req.body;
+
+    if (!newSlotStartTimeStr || isNaN(Date.parse(newSlotStartTimeStr))) {
+      res.status(400).json({ error: 'Bad Request', message: 'Valid slotStartTime is required' });
+      return;
+    }
+
+    const existingAppt = await prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        doctor: true,
+      },
+    });
+
+    if (!existingAppt) {
+      res.status(404).json({ error: 'Not Found', message: 'Appointment not found' });
+      return;
+    }
+
+    const newSlotStartTime = new Date(newSlotStartTimeStr);
+    const durationMs = existingAppt.doctor.slotDurationMinutes * 60 * 1000;
+    const newSlotEndTime = new Date(newSlotStartTime.getTime() + durationMs);
+
+    const updatedAppt = await prisma.appointment.update({
+      where: { id },
+      data: {
+        slotStartTime: newSlotStartTime,
+        slotEndTime: newSlotEndTime,
+      },
+      include: {
+        patient: { select: { id: true, name: true, email: true } },
+        doctor: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    // Best-Effort Google Calendar Update
+    syncUpdateCalendarEvent(updatedAppt.id).catch((err) => {
+      console.error('Failed to update Google Calendar event on reschedule:', err);
+    });
+
+    res.status(200).json({
+      message: 'Appointment rescheduled successfully',
+      appointment: updatedAppt,
+    });
+  } catch (error: any) {
+    console.error('RescheduleAppointment Error:', error);
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 }

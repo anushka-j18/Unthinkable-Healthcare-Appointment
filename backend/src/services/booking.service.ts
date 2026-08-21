@@ -28,6 +28,7 @@
 import { Role, AppointmentStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { sendBookingConfirmationNotifications } from './email.service';
+import { syncCreateCalendarEvent } from './google.service';
 
 export class SlotUnavailableError extends Error {
   constructor(message: string) {
@@ -297,6 +298,11 @@ export async function bookAppointment(
     // Send Booking Confirmation Email Notifications (Patient + Doctor) & log to NotificationLog
     sendBookingConfirmationNotifications(appointment).catch((err) => {
       console.error('Failed to send booking confirmation email:', err);
+    });
+
+    // Best-Effort Google Calendar Event Sync
+    syncCreateCalendarEvent(appointment.id).catch((err) => {
+      console.error('Failed to sync Google Calendar event:', err);
     });
 
     // 3. Process Symptoms Intake if provided by patient

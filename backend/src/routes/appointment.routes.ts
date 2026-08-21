@@ -7,6 +7,7 @@ import {
   getDoctorSlotsController,
   bookAppointmentController,
   cancelAppointmentController,
+  rescheduleAppointmentController,
 } from '../controllers/appointment.controller';
 
 export const doctorsRouter = Router();
@@ -39,3 +40,10 @@ appointmentsRouter.post('/', authenticate, validateBody(bookAppointmentSchema), 
  * @access  Private (Patient owner, assigned Doctor, or Admin)
  */
 appointmentsRouter.post('/:id/cancel', authenticate, cancelAppointmentController);
+
+/**
+ * @route   POST /api/appointments/:id/reschedule
+ * @desc    Reschedule an appointment to a new slotStartTime and sync Google Calendar
+ * @access  Private (Authenticated Patient, assigned Doctor, or Admin)
+ */
+appointmentsRouter.post('/:id/reschedule', authenticate, rescheduleAppointmentController);
