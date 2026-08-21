@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { UrgencyLevel } from '@prisma/client';
 import OpenAI from 'openai';
 
-// Schema enforcing structured JSON response from LLM
+// Schema enforcing structured JSON response from LLM for Symptom Intake
 export const llmAnalysisSchema = z.object({
   urgencyLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'Low', 'Medium', 'High']).transform((val) => {
     const upper = val.toUpperCase();
@@ -18,6 +18,29 @@ export type LLMAnalysisResult = {
   urgencyLevel: UrgencyLevel;
   chiefComplaint: string;
   suggestedQuestions: string[];
+};
+
+// Schema enforcing structured JSON response for Post-Visit Summarizer
+export const llmPostVisitSchema = z.object({
+  patientSummary: z.string().min(5, 'Patient summary must be at least 5 characters'),
+  medications: z.array(z.object({
+    name: z.string().min(1),
+    dosage: z.string().min(1),
+    frequency: z.string().min(1),
+    durationDays: z.number().int().optional().default(7),
+  })).optional().default([]),
+  followUpSteps: z.array(z.string()).optional().default([]),
+});
+
+export type LLMPostVisitResult = {
+  patientSummary: string;
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    durationDays: number;
+  }>;
+  followUpSteps: string[];
 };
 
 /**
@@ -67,14 +90,37 @@ function fallbackSymptomAnalyzer(symptoms: string): LLMAnalysisResult {
 }
 
 /**
+ * Local fallback post-visit summarizer used when LLM API calls fail or no key is provided.
+ */
+function fallbackPostVisitSummarizer(notes: string): LLMPostVisitResult {
+  const lower = notes.toLowerCase();
+  const medications: Array<{ name: string; dosage: string; frequency: string; durationDays: number }> = [];
+
+  if (lower.includes('amoxicillin')) {
+    medications.push({ name: 'Amoxicillin', dosage: '500mg', frequency: 'Three times daily (TID)', durationDays: 7 });
+  } else if (lower.includes('ibuprofen')) {
+    medications.push({ name: 'Ibuprofen', dosage: '400mg', frequency: 'Every 8 hours as needed for pain', durationDays: 5 });
+  } else if (lower.includes('paracetamol') || lower.includes('acetaminophen')) {
+    medications.push({ name: 'Paracetamol', dosage: '500mg', frequency: 'Every 6 hours as needed for fever', durationDays: 5 });
+  }
+
+  return {
+    patientSummary: `Thank you for your visit today. Your doctor has evaluated your condition: "${notes}". Please follow the prescribed care plan, take any prescribed medications as directed, and contact the clinic if your symptoms do not improve.`,
+    medications,
+    followUpSteps: [
+      'Take prescribed medications at regular intervals.',
+      'Get adequate rest and maintain hydration.',
+      'Contact clinic or schedule a follow-up if symptoms persist after 5 days.',
+    ],
+  };
+}
+
+/**
  * Analyzes raw symptoms submitted by a patient using OpenAI API or fallback engine.
- * Requires structured JSON output, validates with Zod, and retries once on malformed output.
- * If LLM call fails entirely, returns null so booking can still proceed safely.
  */
 export async function analyzeSymptoms(symptoms: string): Promise<LLMAnalysisResult | null> {
   const apiKey = process.env.OPENAI_API_KEY;
 
-  // If no valid OpenAI API key is configured or key is default placeholder, use local analyzer
   if (!apiKey || apiKey.includes('your-openai-api-key') || apiKey.includes('sk-proj-your')) {
     console.log('ℹ️ OPENAI_API_KEY not configured. Utilizing local fallback symptom analyzer.');
     return fallbackSymptomAnalyzer(symptoms);
@@ -91,7 +137,7 @@ export async function analyzeSymptoms(symptoms: string): Promise<LLMAnalysisResu
 }`;
 
   let attempts = 0;
-  const maxAttempts = 2; // Initial attempt + 1 retry on malformed output
+  const maxAttempts = 2;
 
   while (attempts < maxAttempts) {
     attempts++;
@@ -109,13 +155,72 @@ export async function analyzeSymptoms(symptoms: string): Promise<LLMAnalysisResu
       const cleanJsonStr = extractJsonFromString(rawContent);
 
       const parsedJson = JSON.parse(cleanJsonStr);
-      const validated = llmAnalysisSchema.parse(parsedJson);
-
-      return validated;
+      return llmAnalysisSchema.parse(parsedJson);
     } catch (error: any) {
       console.warn(`⚠️ LLM Symptom Analysis Attempt ${attempts} failed:`, error.message);
       if (attempts >= maxAttempts) {
         console.error('❌ LLM Symptom Analysis failed after retry. Returning null for fallback.');
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Converts clinical doctor notes into a patient-friendly summary with medication schedule.
+ * Prompt template: "Convert these clinical notes into a patient-friendly summary with medication schedule and follow-up steps: <notes>"
+ */
+export async function generatePostVisitSummary(doctorNotes: string): Promise<LLMPostVisitResult | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey || apiKey.includes('your-openai-api-key') || apiKey.includes('sk-proj-your')) {
+    console.log('ℹ️ OPENAI_API_KEY not configured. Utilizing local fallback post-visit summarizer.');
+    return fallbackPostVisitSummarizer(doctorNotes);
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const promptTemplate = `Convert these clinical notes into a patient-friendly summary with medication schedule and follow-up steps: ${doctorNotes}`;
+
+  const systemMessage = `You are a clinical communications AI assistant. You MUST respond with valid JSON matching this exact structure:
+{
+  "patientSummary": "Clear, empathetic explanation of diagnosis and care plan written directly to the patient",
+  "medications": [
+    {
+      "name": "Medication Name",
+      "dosage": "500mg",
+      "frequency": "Twice daily",
+      "durationDays": 7
+    }
+  ],
+  "followUpSteps": ["Follow-up instruction 1", "Follow-up instruction 2"]
+}`;
+
+  let attempts = 0;
+  const maxAttempts = 2;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemMessage },
+          { role: 'user', content: promptTemplate },
+        ],
+        temperature: 0.2,
+      });
+
+      const rawContent = response.choices[0]?.message?.content || '';
+      const cleanJsonStr = extractJsonFromString(rawContent);
+
+      const parsedJson = JSON.parse(cleanJsonStr);
+      return llmPostVisitSchema.parse(parsedJson);
+    } catch (error: any) {
+      console.warn(`⚠️ LLM Post-Visit Summary Attempt ${attempts} failed:`, error.message);
+      if (attempts >= maxAttempts) {
+        console.error('❌ LLM Post-Visit Summary failed after retry. Returning null for fallback.');
         return null;
       }
     }

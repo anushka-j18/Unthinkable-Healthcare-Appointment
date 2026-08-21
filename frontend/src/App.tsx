@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HealthStatus } from './types/health';
 import { AdminPortal } from './components/AdminPortal';
 import { PatientPortal } from './components/PatientPortal';
+import { DoctorPortal } from './components/DoctorPortal';
 import { 
   Activity, 
   Stethoscope, 
@@ -14,12 +15,12 @@ import {
 
 /**
  * Main Application Landing Component displaying Monorepo initialization status,
- * backend connection health verification, Admin Portal, and Patient Booking Portal.
+ * backend connection health verification, Patient Portal, Doctor Portal, and Admin Portal.
  *
  * @returns React Element
  */
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'patient' | 'admin' | 'overview'>('patient');
+  const [activeTab, setActiveTab] = useState<'patient' | 'doctor' | 'admin' | 'overview'>('patient');
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +73,19 @@ const App: React.FC = () => {
           >
             <UserCheck size={18} /> Patient Booking Portal
           </button>
+
+          <button
+            className={`btn-secondary ${activeTab === 'doctor' ? 'active-tab' : ''}`}
+            onClick={() => setActiveTab('doctor')}
+            style={{
+              borderColor: activeTab === 'doctor' ? '#34d399' : undefined,
+              background: activeTab === 'doctor' ? 'rgba(16, 185, 129, 0.15)' : undefined,
+              color: activeTab === 'doctor' ? '#34d399' : undefined,
+            }}
+          >
+            <Stethoscope size={18} /> Doctor Portal
+          </button>
+
           <button
             className={`btn-secondary ${activeTab === 'admin' ? 'active-tab' : ''}`}
             onClick={() => setActiveTab('admin')}
@@ -83,6 +97,7 @@ const App: React.FC = () => {
           >
             <ShieldCheck size={18} /> Admin Portal
           </button>
+
           <button
             className={`btn-secondary ${activeTab === 'overview' ? 'active-tab' : ''}`}
             onClick={() => setActiveTab('overview')}
@@ -116,6 +131,8 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       {activeTab === 'patient' ? (
         <PatientPortal />
+      ) : activeTab === 'doctor' ? (
+        <DoctorPortal />
       ) : activeTab === 'admin' ? (
         <AdminPortal />
       ) : (
@@ -191,18 +208,20 @@ const App: React.FC = () => {
               </span>
             </div>
 
-            {/* Portal 2: Doctor Portal Placeholder */}
-            <div className="card">
+            {/* Portal 2: Doctor Portal */}
+            <div className="card" style={{ cursor: 'pointer', border: '1px solid #34d399' }} onClick={() => setActiveTab('doctor')}>
               <div className="card-header">
-                <div className="card-icon-wrapper">
+                <div className="card-icon-wrapper" style={{ color: '#34d399', background: 'rgba(16, 185, 129, 0.1)' }}>
                   <Stethoscope size={24} />
                 </div>
-                <h3 className="card-title">Doctor Portal</h3>
+                <h3 className="card-title">Doctor Portal (Active)</h3>
               </div>
               <p className="card-desc">
-                Review patient chief complaints, manage schedules, log post-visit notes, and generate AI summaries.
+                Review patient chief complaints, manage consultation schedules, record post-visit notes, and generate AI summaries.
               </p>
-              <span className="badge-tag">Increment 8+</span>
+              <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}>
+                Click to Open Doctor Portal →
+              </span>
             </div>
 
             {/* Portal 3: Admin Portal */}

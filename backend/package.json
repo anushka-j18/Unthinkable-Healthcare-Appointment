@@ -15,7 +15,8 @@
     "test:auth": "ts-node scripts/test-auth.ts",
     "test:admin": "ts-node scripts/test-admin.ts",
     "test:concurrency": "ts-node scripts/test-booking-concurrency.ts",
-    "test:symptoms": "ts-node scripts/test-symptom-llm.ts"
+    "test:symptoms": "ts-node scripts/test-symptom-llm.ts",
+    "test:postvisit": "ts-node scripts/test-postvisit-llm.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
