@@ -15,6 +15,7 @@ export const bookAppointmentSchema = z.object({
   slotStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid slotStartTime. Expected valid ISO date timestamp',
   }),
+  symptoms: z.string().trim().optional(),
 });
 
 export type SearchDoctorQuery = z.infer<typeof searchDoctorQuerySchema>;

@@ -67,7 +67,7 @@ export async function bookAppointmentController(req: Request, res: Response): Pr
     }
 
     const input: BookAppointmentInput = req.body;
-    const appointment = await bookAppointment(req.user.id, input.doctorId, input.slotStartTime);
+    const appointment = await bookAppointment(req.user.id, input.doctorId, input.slotStartTime, input.symptoms);
 
     res.status(201).json({
       message: 'Appointment booked successfully',

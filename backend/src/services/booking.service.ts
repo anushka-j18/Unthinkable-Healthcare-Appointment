@@ -208,10 +208,18 @@ export async function calculateAvailableSlots(doctorIdInput: string, dateStr: st
   };
 }
 
+import { analyzeSymptoms } from './llm.service';
+
 /**
  * Books an appointment for a patient in a concurrency-safe atomic database transaction.
+ * Process optional pre-visit symptom intake via LLM service and stores in SymptomForm.
  */
-export async function bookAppointment(patientId: string, doctorIdInput: string, slotStartTimeStr: string) {
+export async function bookAppointment(
+  patientId: string,
+  doctorIdInput: string,
+  slotStartTimeStr: string,
+  symptoms?: string
+) {
   // Resolve DoctorProfile by DoctorProfile.id or User.id
   const doctorProfile = await prisma.doctorProfile.findFirst({
     where: {
@@ -284,6 +292,33 @@ export async function bookAppointment(patientId: string, doctorIdInput: string, 
         },
       });
     });
+
+    // 3. Process Symptoms Intake if provided by patient
+    if (symptoms && symptoms.trim() !== '') {
+      let analysisResult = null;
+      try {
+        analysisResult = await analyzeSymptoms(symptoms.trim());
+      } catch (err) {
+        console.error('LLM analysis error handled gracefully:', err);
+        analysisResult = null;
+      }
+
+      const symptomForm = await prisma.symptomForm.create({
+        data: {
+          appointmentId: appointment.id,
+          rawSymptoms: symptoms.trim(),
+          urgencyLevel: analysisResult?.urgencyLevel || null,
+          chiefComplaint: analysisResult?.chiefComplaint || null,
+          suggestedQuestions: (analysisResult?.suggestedQuestions as any) || null,
+          llmProcessedAt: analysisResult ? new Date() : null,
+        },
+      });
+
+      return {
+        ...appointment,
+        symptomForm,
+      };
+    }
 
     return appointment;
   } catch (error: any) {

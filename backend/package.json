@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "test:auth": "ts-node scripts/test-auth.ts",
     "test:admin": "ts-node scripts/test-admin.ts",
-    "test:concurrency": "ts-node scripts/test-booking-concurrency.ts"
+    "test:concurrency": "ts-node scripts/test-booking-concurrency.ts",
+    "test:symptoms": "ts-node scripts/test-symptom-llm.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -23,6 +24,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
     "jsonwebtoken": "^9.0.3",
+    "openai": "^7.5.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
