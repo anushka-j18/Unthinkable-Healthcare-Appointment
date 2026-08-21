@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test:auth": "ts-node scripts/test-auth.ts",
-    "test:admin": "ts-node scripts/test-admin.ts"
+    "test:admin": "ts-node scripts/test-admin.ts",
+    "test:concurrency": "ts-node scripts/test-booking-concurrency.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
