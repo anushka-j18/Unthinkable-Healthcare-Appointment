@@ -16,7 +16,8 @@
     "test:admin": "ts-node scripts/test-admin.ts",
     "test:concurrency": "ts-node scripts/test-booking-concurrency.ts",
     "test:symptoms": "ts-node scripts/test-symptom-llm.ts",
-    "test:postvisit": "ts-node scripts/test-postvisit-llm.ts"
+    "test:postvisit": "ts-node scripts/test-postvisit-llm.ts",
+    "test:email": "ts-node scripts/test-email-notifications.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -25,6 +26,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.0.5",
     "openai": "^7.5.0",
     "zod": "^4.4.3"
   },
@@ -34,6 +36,7 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.11.24",
+    "@types/nodemailer": "^8.0.1",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",

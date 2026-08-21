@@ -27,6 +27,7 @@
 
 import { Role, AppointmentStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { sendBookingConfirmationNotifications } from './email.service';
 
 export class SlotUnavailableError extends Error {
   constructor(message: string) {
@@ -291,6 +292,11 @@ export async function bookAppointment(
           },
         },
       });
+    });
+
+    // Send Booking Confirmation Email Notifications (Patient + Doctor) & log to NotificationLog
+    sendBookingConfirmationNotifications(appointment).catch((err) => {
+      console.error('Failed to send booking confirmation email:', err);
     });
 
     // 3. Process Symptoms Intake if provided by patient

@@ -3,6 +3,7 @@ import { Role, AppointmentStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../utils/password';
 import { CreateDoctorInput, UpdateDoctorInput, MarkLeaveInput } from '../validators/admin.validator';
+import { sendLeaveCancellationNotification } from '../services/email.service';
 
 /**
  * Sanitizes user object by removing passwordHash.
@@ -256,8 +257,25 @@ export async function markDoctorLeave(req: Request, res: Response): Promise<void
       },
     });
 
+    // 3. Mark affected appointments as CANCELLED and dispatch LEAVE_CANCELLATION emails
+    if (affectedAppointments.length > 0) {
+      await prisma.appointment.updateMany({
+        where: {
+          id: { in: affectedAppointments.map((a) => a.id) },
+        },
+        data: { status: AppointmentStatus.CANCELLED },
+      });
+
+      // Dispatch rebooking notification email & audit log for each affected patient
+      for (const appt of affectedAppointments) {
+        sendLeaveCancellationNotification(appt, doctorProfile.user.name, input.reason).catch((err) => {
+          console.error(`Failed to send leave cancellation email for appt ${appt.id}:`, err);
+        });
+      }
+    }
+
     res.status(201).json({
-      message: 'Doctor leave day recorded successfully',
+      message: 'Doctor leave day recorded successfully and affected patients notified',
       leaveDay,
       hasAffectedAppointments: affectedAppointments.length > 0,
       affectedAppointmentsCount: affectedAppointments.length,

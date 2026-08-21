@@ -6,6 +6,7 @@ import {
   getDoctorsController,
   getDoctorSlotsController,
   bookAppointmentController,
+  cancelAppointmentController,
 } from '../controllers/appointment.controller';
 
 export const doctorsRouter = Router();
@@ -31,3 +32,10 @@ doctorsRouter.get('/:doctorId/slots', getDoctorSlotsController);
  * @access  Private (Authenticated Patient)
  */
 appointmentsRouter.post('/', authenticate, validateBody(bookAppointmentSchema), bookAppointmentController);
+
+/**
+ * @route   POST /api/appointments/:id/cancel
+ * @desc    Cancel an appointment and dispatch cancellation emails & notification logs
+ * @access  Private (Patient owner, assigned Doctor, or Admin)
+ */
+appointmentsRouter.post('/:id/cancel', authenticate, cancelAppointmentController);
