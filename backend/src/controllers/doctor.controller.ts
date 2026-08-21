@@ -48,6 +48,37 @@ export async function getDoctorAppointmentsController(req: Request, res: Respons
 }
 
 /**
+ * GET /api/doctor/profile
+ * Retrieves Doctor profile details including working hours and scheduled leave calendar.
+ */
+export async function getDoctorProfileController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+      return;
+    }
+
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: req.user.id },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true } },
+        leaveDays: { orderBy: { date: 'asc' } },
+      },
+    });
+
+    if (!doctorProfile) {
+      res.status(404).json({ error: 'Not Found', message: 'Doctor profile not found' });
+      return;
+    }
+
+    res.status(200).json({ doctorProfile });
+  } catch (error: any) {
+    console.error('GetDoctorProfile Error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
  * POST /api/doctor/appointments/:appointmentId/post-visit
  * Submits clinical consultation notes and prescription for an appointment.
  * Generates AI patient-friendly summary & updates appointment status to COMPLETED.

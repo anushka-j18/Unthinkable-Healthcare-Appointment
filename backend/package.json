@@ -21,6 +21,7 @@
     "test:worker": "ts-node scripts/test-bullmq-worker.ts",
     "test:google": "ts-node scripts/test-google-calendar.ts",
     "test:patient": "ts-node scripts/test-patient-ui-flow.ts",
+    "test:doctor": "ts-node scripts/test-doctor-ui-flow.ts",
     "dev:worker": "ts-node src/workers/queue.worker.ts"
   },
   "dependencies": {

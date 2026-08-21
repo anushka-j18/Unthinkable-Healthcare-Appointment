@@ -5,6 +5,7 @@ import { validateBody } from '../middleware/validate';
 import { postVisitNoteSchema } from '../validators/postvisit.validator';
 import {
   getDoctorAppointmentsController,
+  getDoctorProfileController,
   submitPostVisitNoteController,
 } from '../controllers/doctor.controller';
 
@@ -12,6 +13,13 @@ const router = Router();
 
 // Apply Doctor or Admin role protection to all routes in this router
 router.use(authenticate, requireRole(Role.DOCTOR, Role.ADMIN));
+
+/**
+ * @route   GET /api/doctor/profile
+ * @desc    Get logged in Doctor profile details and leave days
+ * @access  Private (DOCTOR, ADMIN)
+ */
+router.get('/profile', getDoctorProfileController);
 
 /**
  * @route   GET /api/doctor/appointments

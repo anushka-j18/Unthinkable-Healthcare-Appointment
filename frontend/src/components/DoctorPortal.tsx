@@ -17,7 +17,10 @@ import {
   HelpCircle,
   RefreshCw,
   LogOut,
-  Mail
+  Mail,
+  CalendarCheck,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 interface PatientUser {
@@ -57,15 +60,38 @@ interface Appointment {
   postVisitNote: PostVisitNote | null;
 }
 
+interface LeaveDay {
+  id: string;
+  date: string;
+  reason: string | null;
+}
+
+interface DoctorProfile {
+  id: string;
+  specialisation: string;
+  slotDurationMinutes: number;
+  workingHours: any;
+  leaveDays: LeaveDay[];
+  user: PatientUser;
+}
+
 export const DoctorPortal: React.FC = () => {
   const [token, setToken] = useState<string>(localStorage.getItem('doctorToken') || '');
   const [doctorUser, setDoctorUser] = useState<any>(null);
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
+
+  // Nav Tab: 'consultations' | 'leaves'
+  const [doctorTab, setDoctorTab] = useState<'consultations' | 'leaves'>('consultations');
+
+  // Filter state for consultations: 'all' | 'today' | 'upcoming' | 'completed'
+  const [filterMode, setFilterMode] = useState<'all' | 'today' | 'upcoming' | 'completed'>('all');
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState<string>('doctor@example.com');
-  const [loginPassword, setLoginPassword] = useState<string>('DoctorSecret123!');
+  const [loginEmail, setLoginEmail] = useState<string>('dr.house@healthcare.com');
+  const [loginPassword, setLoginPassword] = useState<string>('DoctorPassword123!');
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Post-Visit Modal state
@@ -96,15 +122,15 @@ export const DoctorPortal: React.FC = () => {
 
   const fetchDoctorProfile = async () => {
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch('/api/doctor/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setDoctorUser(data.user);
+        setDoctorProfile(data.doctorProfile);
+        setDoctorUser(data.doctorProfile.user);
       } else {
-        setToken('');
-        localStorage.removeItem('doctorToken');
+        handleLogout();
       }
     } catch (err) {
       console.error('Failed to fetch doctor profile:', err);
@@ -150,9 +176,9 @@ export const DoctorPortal: React.FC = () => {
           body: JSON.stringify({
             email: loginEmail,
             password: loginPassword,
-            name: 'Dr. John Smith',
+            name: 'Dr. Gregory House',
             role: 'DOCTOR',
-            specialisation: 'General Medicine',
+            specialisation: 'Internal Medicine',
           }),
         });
         if (regRes.ok) {
@@ -180,14 +206,29 @@ export const DoctorPortal: React.FC = () => {
     setToken('');
     localStorage.removeItem('doctorToken');
     setDoctorUser(null);
+    setDoctorProfile(null);
     setAppointments([]);
+  };
+
+  const handleConnectGoogleCalendar = async () => {
+    try {
+      const res = await fetch('/api/auth/google', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.authUrl) {
+        window.open(data.authUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Failed to get Google OAuth URL:', err);
+    }
   };
 
   const openPostVisitModal = (appt: Appointment) => {
     setSelectedAppt(appt);
     setDoctorNotes(
       appt.postVisitNote?.doctorNotes ||
-        'Patient diagnosed with acute sinusitis. Prescribed Amoxicillin 500mg TID for 7 days.'
+        'Patient diagnosed with acute bacterial infection. Prescribed Amoxicillin 500mg TID for 7 days.'
     );
     if (appt.postVisitNote?.prescription && appt.postVisitNote.prescription.length > 0) {
       setPrescriptionItems(appt.postVisitNote.prescription);
@@ -233,7 +274,7 @@ export const DoctorPortal: React.FC = () => {
         throw new Error(data.message || 'Failed to submit post-visit note');
       }
 
-      showSuccess(`Post-visit notes & prescription saved! AI Patient summary generated.`);
+      showSuccess(`Post-visit notes & prescription recorded! AI Patient Summary generated.`);
       setSelectedAppt(null);
       fetchDoctorAppointments();
     } catch (err: any) {
@@ -242,6 +283,16 @@ export const DoctorPortal: React.FC = () => {
       setIsSubmittingNotes(false);
     }
   };
+
+  // Date filtering helpers
+  const todayStr = new Date().toISOString().split('T')[0];
+  const filteredAppointments = appointments.filter((appt) => {
+    const apptDateStr = new Date(appt.slotStartTime).toISOString().split('T')[0];
+    if (filterMode === 'today') return apptDateStr === todayStr;
+    if (filterMode === 'upcoming') return appt.status === 'BOOKED';
+    if (filterMode === 'completed') return appt.status === 'COMPLETED';
+    return true;
+  });
 
   return (
     <div className="admin-portal-container">
@@ -258,15 +309,18 @@ export const DoctorPortal: React.FC = () => {
             <Stethoscope size={28} />
           </div>
           <div>
-            <h2>Doctor Portal — Clinical Consultations & Prescriptions</h2>
-            <p>Review patient pre-visit AI intake forms, record clinical notes, and generate AI patient summaries.</p>
+            <h2>Doctor Clinical Consultations & Leave Dashboard</h2>
+            <p>Review pre-visit AI urgency levels & chief complaints, submit post-visit notes & prescriptions, and manage leave schedules.</p>
           </div>
         </div>
 
         {doctorUser ? (
           <div className="admin-user-pill">
             <User size={18} />
-            <span>Dr. {doctorUser.name} (<strong>DOCTOR</strong>)</span>
+            <span>Dr. {doctorUser.name} ({doctorProfile?.specialisation || 'DOCTOR'})</span>
+            <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={handleConnectGoogleCalendar} title="Connect Google Calendar">
+              <CalendarCheck size={14} /> Connect Google Calendar
+            </button>
             <button className="btn-icon-logout" onClick={handleLogout} title="Logout">
               <LogOut size={16} />
             </button>
@@ -291,13 +345,13 @@ export const DoctorPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Login Screen if Not Authenticated */}
+      {/* Doctor Sign In Screen */}
       {!token ? (
-        <div className="card auth-card">
+        <div className="card auth-card" style={{ maxWidth: '450px', margin: '2rem auto' }}>
           <div className="auth-card-header">
             <Lock size={24} />
-            <h3>Doctor Portal Authentication</h3>
-            <p>Sign in with Doctor credentials to access your consultation schedule.</p>
+            <h3>Doctor Sign In</h3>
+            <p>Authenticate with Doctor credentials to access clinical tools.</p>
           </div>
           <form onSubmit={handleDoctorLogin} className="admin-form">
             <div className="form-group">
@@ -308,7 +362,7 @@ export const DoctorPortal: React.FC = () => {
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="doctor@example.com"
+                  placeholder="dr.house@healthcare.com"
                   required
                 />
               </div>
@@ -326,141 +380,260 @@ export const DoctorPortal: React.FC = () => {
                 />
               </div>
             </div>
-            <button type="submit" className="btn-primary" disabled={isLoggingIn}>
+            <button type="submit" className="btn-primary" disabled={isLoggingIn} style={{ justifyContent: 'center', width: '100%' }}>
               {isLoggingIn ? 'Authenticating...' : 'Sign In as Doctor'}
             </button>
           </form>
         </div>
       ) : (
-        /* Doctor Schedule & Appointment Roster */
-        <div className="dashboard-content">
-          <div className="dashboard-actions-bar">
-            <div className="stats-pill" style={{ color: '#34d399' }}>
-              <Calendar size={18} />
-              <span><strong>{appointments.length}</strong> Consultation Appointments</span>
-            </div>
-            <button className="btn-secondary" onClick={fetchDoctorAppointments} disabled={loading}>
-              <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh Schedule
+        /* Doctor Dashboard Main Tabs */
+        <div>
+          {/* Sub Navigation Bar */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <button
+              className={`btn-secondary ${doctorTab === 'consultations' ? 'active-tab' : ''}`}
+              onClick={() => setDoctorTab('consultations')}
+              style={{
+                borderColor: doctorTab === 'consultations' ? '#34d399' : undefined,
+                background: doctorTab === 'consultations' ? 'rgba(16, 185, 129, 0.15)' : undefined,
+                color: doctorTab === 'consultations' ? '#34d399' : undefined,
+              }}
+            >
+              <Activity size={18} /> Consultations & Pre-Visit AI ({appointments.length})
+            </button>
+
+            <button
+              className={`btn-secondary ${doctorTab === 'leaves' ? 'active-tab' : ''}`}
+              onClick={() => {
+                setDoctorTab('leaves');
+                fetchDoctorProfile();
+              }}
+              style={{
+                borderColor: doctorTab === 'leaves' ? '#34d399' : undefined,
+                background: doctorTab === 'leaves' ? 'rgba(16, 185, 129, 0.15)' : undefined,
+                color: doctorTab === 'leaves' ? '#34d399' : undefined,
+              }}
+            >
+              <Calendar size={18} /> Scheduled Leave Calendar ({doctorProfile?.leaveDays?.length || 0})
             </button>
           </div>
 
-          {loading && appointments.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading schedule...</p>
-          ) : appointments.length === 0 ? (
-            <div className="empty-state">
-              <Calendar size={48} />
-              <h3>No Appointments Scheduled Yet</h3>
-              <p>When patients book consultation slots, they will appear here in real time.</p>
-            </div>
-          ) : (
-            <div className="doctors-grid" style={{ gridTemplateColumns: '1fr' }}>
-              {appointments.map((appt) => {
-                const isCompleted = appt.status === 'COMPLETED';
-                const sf = appt.symptomForm;
-                const note = appt.postVisitNote;
+          {/* TAB 1: CONSULTATIONS & PRE-VISIT AI */}
+          {doctorTab === 'consultations' && (
+            <div>
+              {/* Filter Pills Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className={`btn-secondary ${filterMode === 'all' ? 'active-tab' : ''}`}
+                    onClick={() => setFilterMode('all')}
+                  >
+                    All ({appointments.length})
+                  </button>
+                  <button
+                    className={`btn-secondary ${filterMode === 'today' ? 'active-tab' : ''}`}
+                    onClick={() => setFilterMode('today')}
+                  >
+                    Today's Schedule
+                  </button>
+                  <button
+                    className={`btn-secondary ${filterMode === 'upcoming' ? 'active-tab' : ''}`}
+                    onClick={() => setFilterMode('upcoming')}
+                  >
+                    Upcoming
+                  </button>
+                  <button
+                    className={`btn-secondary ${filterMode === 'completed' ? 'active-tab' : ''}`}
+                    onClick={() => setFilterMode('completed')}
+                  >
+                    Completed
+                  </button>
+                </div>
 
-                return (
-                  <div className="doctor-card" key={appt.id} style={{ borderColor: isCompleted ? 'rgba(16, 185, 129, 0.4)' : undefined }}>
-                    <div className="doc-card-header" style={{ justifyContent: 'space-between', width: '100%' }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <div className="doc-avatar" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
-                          <User size={24} />
-                        </div>
-                        <div>
-                          <h3 style={{ fontSize: '1.2rem' }}>Patient: {appt.patient.name}</h3>
-                          <p className="doc-email">📧 {appt.patient.email} {appt.patient.phone ? `| 📞 ${appt.patient.phone}` : ''}</p>
-                          <p className="slot-time" style={{ marginTop: '0.2rem' }}>
-                            <Clock size={14} /> {new Date(appt.slotStartTime).toLocaleString()} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
+                <button className="btn-secondary" onClick={fetchDoctorAppointments} disabled={loading}>
+                  <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh Roster
+                </button>
+              </div>
 
-                      <span className={`status-pill ${isCompleted ? 'online' : 'loading'}`}>
-                        {appt.status}
-                      </span>
-                    </div>
+              {loading && appointments.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)' }}>Loading schedule...</p>
+              ) : filteredAppointments.length === 0 ? (
+                <div className="empty-state">
+                  <Calendar size={48} />
+                  <h3>No Consultations Match Filter</h3>
+                  <p>No appointments found matching filter criteria.</p>
+                </div>
+              ) : (
+                <div className="doctors-grid" style={{ gridTemplateColumns: '1fr' }}>
+                  {filteredAppointments.map((appt) => {
+                    const isCompleted = appt.status === 'COMPLETED';
+                    const sf = appt.symptomForm;
+                    const note = appt.postVisitNote;
+                    const urgency = sf?.urgencyLevel;
 
-                    {/* Pre-Visit AI Intake Form Display */}
-                    {sf && (
-                      <div className="doc-bio" style={{ borderLeftColor: '#60a5fa', background: 'rgba(0, 0, 0, 0.3)' }}>
-                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.4rem' }}>
-                          <Activity size={16} /> Pre-Visit AI Symptom Form
-                        </h4>
-                        <p style={{ marginBottom: '0.3rem' }}><strong>Raw Symptoms:</strong> "{sf.rawSymptoms}"</p>
-
-                        {sf.urgencyLevel && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.3rem 0' }}>
-                            <strong>AI Urgency Assessment:</strong>
-                            <span className={`status-pill ${sf.urgencyLevel === 'HIGH' ? 'offline' : sf.urgencyLevel === 'MEDIUM' ? 'loading' : 'online'}`}>
-                              {sf.urgencyLevel}
-                            </span>
-                          </div>
-                        )}
-
-                        {sf.chiefComplaint && (
-                          <p style={{ margin: '0.3rem 0' }}><strong>Chief Complaint:</strong> {sf.chiefComplaint}</p>
-                        )}
-
-                        {sf.suggestedQuestions && sf.suggestedQuestions.length > 0 && (
-                          <div style={{ marginTop: '0.4rem' }}>
-                            <strong><HelpCircle size={14} /> AI Suggested Doctor Questions:</strong>
-                            <ul style={{ paddingLeft: '1.2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                              {sf.suggestedQuestions.map((q, idx) => (
-                                <li key={idx}>{q}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Post-Visit Clinical Summary Display */}
-                    {note && (
-                      <div className="doc-bio" style={{ borderLeftColor: '#34d399', background: 'rgba(16, 185, 129, 0.08)' }}>
-                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '0.4rem' }}>
-                          <CheckCircle size={16} /> Clinical Notes & AI Patient Summary
-                        </h4>
-                        <p><strong>Doctor Notes:</strong> {note.doctorNotes}</p>
-                        {note.patientSummary && (
-                          <p style={{ marginTop: '0.4rem', color: 'var(--text-main)' }}>
-                            <strong>AI Patient Summary:</strong> {note.patientSummary}
-                          </p>
-                        )}
-                        {note.prescription && note.prescription.length > 0 && (
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <strong><Pill size={14} /> Prescribed Medications Schedule:</strong>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.3rem' }}>
-                              {note.prescription.map((med, idx) => (
-                                <span className="meta-tag slot-tag" key={idx}>
-                                  💊 {med.name} ({med.dosage}) — {med.frequency} [{med.durationDays || 7} days]
-                                </span>
-                              ))}
+                    return (
+                      <div
+                        className="doctor-card"
+                        key={appt.id}
+                        style={{
+                          borderColor: urgency === 'HIGH' ? '#f87171' : isCompleted ? 'rgba(16, 185, 129, 0.4)' : undefined,
+                          background: urgency === 'HIGH' ? 'rgba(239, 68, 68, 0.05)' : undefined,
+                        }}
+                      >
+                        <div className="doc-card-header" style={{ justifyContent: 'space-between', width: '100%' }}>
+                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <div className="doc-avatar" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
+                              <User size={24} />
+                            </div>
+                            <div>
+                              <h3 style={{ fontSize: '1.2rem' }}>Patient: {appt.patient.name}</h3>
+                              <p className="doc-email">📧 {appt.patient.email} {appt.patient.phone ? `| 📞 ${appt.patient.phone}` : ''}</p>
+                              <p className="slot-time" style={{ marginTop: '0.2rem' }}>
+                                <Clock size={14} /> {new Date(appt.slotStartTime).toLocaleString()} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Card Actions */}
-                    <div className="doc-card-actions">
-                      <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => openPostVisitModal(appt)}>
-                        <FileText size={16} /> {isCompleted ? 'Edit Post-Visit Notes & Prescription' : 'Submit Post-Visit Notes & Prescription'}
-                      </button>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            {/* PROMINENT AI URGENCY LEVEL BADGE */}
+                            {urgency && (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.35rem 0.75rem',
+                                  borderRadius: '9999px',
+                                  fontWeight: 700,
+                                  fontSize: '0.82rem',
+                                  color: urgency === 'HIGH' ? '#ffffff' : urgency === 'MEDIUM' ? '#fef08a' : '#a7f3d0',
+                                  background: urgency === 'HIGH' ? '#dc2626' : urgency === 'MEDIUM' ? '#d97706' : '#059669',
+                                  boxShadow: urgency === 'HIGH' ? '0 0 12px rgba(220, 38, 38, 0.5)' : undefined,
+                                }}
+                              >
+                                {urgency === 'HIGH' ? <AlertTriangle size={16} /> : urgency === 'MEDIUM' ? <AlertCircle size={16} /> : <Info size={16} />}
+                                {urgency} URGENCY
+                              </span>
+                            )}
+
+                            <span className={`status-pill ${isCompleted ? 'online' : 'loading'}`}>
+                              {appt.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* PRE-VISIT AI SUMMARY & CHIEF COMPLAINT SURFACED CLEARLY */}
+                        {sf && (
+                          <div className="doc-bio" style={{ borderLeftColor: urgency === 'HIGH' ? '#ef4444' : '#60a5fa', background: 'rgba(0, 0, 0, 0.3)', marginTop: '1rem' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.5rem', fontSize: '1rem' }}>
+                              <Activity size={18} /> Pre-Visit AI Intake Summary
+                            </h4>
+
+                            <p style={{ marginBottom: '0.4rem' }}>
+                              <strong>Patient Symptoms:</strong> <em>"{sf.rawSymptoms}"</em>
+                            </p>
+
+                            {sf.chiefComplaint && (
+                              <p style={{ marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+                                <strong>Chief Complaint:</strong> {sf.chiefComplaint}
+                              </p>
+                            )}
+
+                            {sf.suggestedQuestions && sf.suggestedQuestions.length > 0 && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <strong style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#fbbf24' }}>
+                                  <HelpCircle size={15} /> 3 AI-Suggested Questions for the Doctor:
+                                </strong>
+                                <ul style={{ paddingLeft: '1.2rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                  {sf.suggestedQuestions.map((q, idx) => (
+                                    <li key={idx} style={{ margin: '0.2rem 0' }}>{q}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* POST-VISIT CLINICAL SUMMARY & PRESCRIPTIONS DISPLAY */}
+                        {note && (
+                          <div className="doc-bio" style={{ borderLeftColor: '#34d399', background: 'rgba(16, 185, 129, 0.08)', marginTop: '0.75rem' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '0.4rem' }}>
+                              <CheckCircle size={16} /> Clinical Notes & AI Patient Summary
+                            </h4>
+                            <p><strong>Clinical Notes:</strong> {note.doctorNotes}</p>
+                            {note.patientSummary && (
+                              <p style={{ marginTop: '0.4rem', color: 'var(--text-main)' }}>
+                                <strong>AI Patient Summary:</strong> {note.patientSummary}
+                              </p>
+                            )}
+                            {note.prescription && note.prescription.length > 0 && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <strong><Pill size={14} /> Prescribed Medications Schedule:</strong>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.3rem' }}>
+                                  {note.prescription.map((med, idx) => (
+                                    <span className="meta-tag slot-tag" key={idx}>
+                                      💊 <strong>{med.name}</strong> ({med.dosage}) — {med.frequency} [{med.durationDays || 7} days]
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Button */}
+                        <div className="doc-card-actions" style={{ marginTop: '1rem' }}>
+                          <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => openPostVisitModal(appt)}>
+                            <FileText size={16} /> {isCompleted ? 'Edit Post-Visit Notes & Prescription' : 'Submit Post-Visit Notes & Prescription'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: SCHEDULED LEAVE CALENDAR */}
+          {doctorTab === 'leaves' && (
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '1.2rem' }}>
+                <Calendar size={20} /> My Scheduled Leave Calendar ({doctorProfile?.leaveDays?.length || 0})
+              </h3>
+
+              {!doctorProfile?.leaveDays || doctorProfile.leaveDays.length === 0 ? (
+                <div className="empty-state">
+                  <Calendar size={48} />
+                  <h3>No Scheduled Leave Days</h3>
+                  <p>You have no scheduled leave days recorded. Leave schedules managed via Admin Portal will appear here.</p>
+                </div>
+              ) : (
+                <div className="doctors-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                  {doctorProfile.leaveDays.map((leave) => (
+                    <div className="card" key={leave.id} style={{ borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f87171', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        <Calendar size={18} />
+                        <span>{new Date(leave.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                        <strong>Reason:</strong> {leave.reason || 'Scheduled Leave Day'}
+                      </p>
                     </div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* --- MODAL: Post-Visit Notes & Prescription Form --- */}
+      {/* --- MODAL: POST-VISIT CONSULTATION NOTES & PRESCRIPTION BUILDER --- */}
       {selectedAppt && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '650px' }}>
             <div className="modal-header">
-              <h3><FileText size={20} /> Post-Visit Consultation Notes — {selectedAppt.patient.name}</h3>
+              <h3><FileText size={20} /> Clinical Consultation Notes — {selectedAppt.patient.name}</h3>
               <button className="btn-close" onClick={() => setSelectedAppt(null)}><X size={18} /></button>
             </div>
 
@@ -471,11 +644,11 @@ export const DoctorPortal: React.FC = () => {
                   rows={4}
                   value={doctorNotes}
                   onChange={(e) => setDoctorNotes(e.target.value)}
-                  placeholder="Record clinical diagnostic findings, treatment instructions, and prescribed medications..."
+                  placeholder="Record diagnostic findings, treatment plan, and prescription instructions..."
                   required
                 />
                 <span className="notice-text">
-                  🤖 AI will convert notes into a patient-friendly summary and parse out structured medication schedules.
+                  🤖 AI will convert your clinical notes into a patient-friendly summary and extract structured medication schedules for automated background reminders.
                 </span>
               </div>
 
