@@ -8,6 +8,7 @@ import {
   bookAppointmentController,
   cancelAppointmentController,
   rescheduleAppointmentController,
+  getPatientAppointmentsController,
 } from '../controllers/appointment.controller';
 
 export const doctorsRouter = Router();
@@ -26,6 +27,13 @@ doctorsRouter.get('/', getDoctorsController);
  * @access  Public
  */
 doctorsRouter.get('/:doctorId/slots', getDoctorSlotsController);
+
+/**
+ * @route   GET /api/appointments/my
+ * @desc    Get all appointments for the logged-in patient (Upcoming & Past)
+ * @access  Private (Authenticated Patient)
+ */
+appointmentsRouter.get('/my', authenticate, getPatientAppointmentsController);
 
 /**
  * @route   POST /api/appointments

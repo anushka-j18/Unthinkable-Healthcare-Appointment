@@ -60,6 +60,42 @@ export async function getDoctorSlotsController(req: Request, res: Response): Pro
 }
 
 /**
+ * GET /api/appointments/my
+ * Retrieves all appointments for the logged-in Patient (Upcoming & Past).
+ */
+export async function getPatientAppointmentsController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+      return;
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: { patientId: req.user.id },
+      include: {
+        doctor: {
+          include: {
+            user: { select: { id: true, name: true, email: true, phone: true } },
+          },
+        },
+        symptomForm: true,
+        postVisitNote: true,
+        medicationReminders: true,
+      },
+      orderBy: { slotStartTime: 'desc' },
+    });
+
+    res.status(200).json({
+      count: appointments.length,
+      appointments,
+    });
+  } catch (error: any) {
+    console.error('GetPatientAppointments Error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
  * POST /api/appointments
  * Books an appointment slot for an authenticated patient.
  */
