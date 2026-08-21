@@ -12,7 +12,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "test:auth": "ts-node scripts/test-auth.ts"
+    "test:auth": "ts-node scripts/test-auth.ts",
+    "test:admin": "ts-node scripts/test-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",

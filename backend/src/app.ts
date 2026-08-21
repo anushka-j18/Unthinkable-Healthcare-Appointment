@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import healthRouter from './routes/health';
 import authRouter from './routes/auth.routes';
 import protectedRouter from './routes/protected.routes';
+import adminRouter from './routes/admin.routes';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ export function createApp(): Application {
   app.use('/api', healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/protected', protectedRouter);
+  app.use('/api/admin', adminRouter);
 
   // Catch-all 404 Handler
   app.use((_req: Request, res: Response): void => {
