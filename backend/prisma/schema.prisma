@@ -60,6 +60,7 @@ enum NotificationStatus {
   PENDING
   SENT
   FAILED
+  PERMANENTLY_FAILED
 }
 
 /// Core User entity representing Patients, Doctors, and Administrators

@@ -122,7 +122,28 @@ export async function submitPostVisitNoteController(req: Request, res: Response)
       },
     });
 
-    // 3. Update Appointment status to COMPLETED
+    // 3. Auto-populate MedicationReminder schedules for background worker
+    if (finalPrescriptionList.length > 0) {
+      await prisma.medicationReminder.deleteMany({
+        where: { appointmentId: appointment.id },
+      });
+
+      for (const item of finalPrescriptionList) {
+        await prisma.medicationReminder.create({
+          data: {
+            appointmentId: appointment.id,
+            patientId: appointment.patientId,
+            medicationName: item.name,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            reminderTime: new Date(Date.now() + 60 * 1000), // Default 1 minute initial schedule
+            status: 'PENDING',
+          },
+        });
+      }
+    }
+
+    // 4. Update Appointment status to COMPLETED
     const updatedAppointment = await prisma.appointment.update({
       where: { id: appointment.id },
       data: {
@@ -137,6 +158,7 @@ export async function submitPostVisitNoteController(req: Request, res: Response)
         },
         symptomForm: true,
         postVisitNote: true,
+        medicationReminders: true,
       },
     });
 
