@@ -29,6 +29,7 @@ import { Role, AppointmentStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { sendBookingConfirmationNotifications } from './email.service';
 import { syncCreateCalendarEvent } from './google.service';
+import { isSlotHeldByOther, releaseHold } from './hold.service';
 
 export class SlotUnavailableError extends Error {
   constructor(message: string) {
@@ -191,11 +192,12 @@ export async function calculateAvailableSlots(doctorIdInput: string, dateStr: st
   while (currentSlotStart.getTime() + durationMs <= windowEnd.getTime()) {
     const currentSlotEnd = new Date(currentSlotStart.getTime() + durationMs);
     const isBooked = bookedTimestamps.has(currentSlotStart.getTime());
+    const isHeld = await isSlotHeldByOther(doctorProfile.id, currentSlotStart.toISOString());
 
     slots.push({
       slotStartTime: currentSlotStart.toISOString(),
       slotEndTime: currentSlotEnd.toISOString(),
-      isAvailable: !isBooked,
+      isAvailable: !isBooked && !isHeld,
     });
 
     currentSlotStart = new Date(currentSlotStart.getTime() + durationMs);
@@ -255,6 +257,12 @@ export async function bookAppointment(
     throw new SlotUnavailableError('Doctor is on scheduled leave on this date.');
   }
 
+  // Check if slot is held by another patient
+  const heldByOther = await isSlotHeldByOther(doctorProfile.id, slotStartTimeStr, patientId);
+  if (heldByOther) {
+    throw new SlotUnavailableError('This slot is currently reserved by another patient. Please choose a different slot.');
+  }
+
   try {
     // Atomic Database Transaction
     const appointment = await prisma.$transaction(async (tx) => {
@@ -294,6 +302,9 @@ export async function bookAppointment(
         },
       });
     });
+
+    // Release any active slot hold for this patient upon successful booking
+    await releaseHold(patientId, doctorProfile.id, slotStartTimeStr);
 
     // Send Booking Confirmation Email Notifications (Patient + Doctor) & log to NotificationLog
     sendBookingConfirmationNotifications(appointment).catch((err) => {

@@ -272,3 +272,64 @@ export async function rescheduleAppointmentController(req: Request, res: Respons
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 }
+
+import { holdSlot, releaseHold } from '../services/hold.service';
+import { HoldSlotInput } from '../validators/appointment.validator';
+
+/**
+ * POST /api/appointments/hold
+ * Reserves a doctor's slot for 5 minutes (300 seconds) for an authenticated patient.
+ */
+export async function holdSlotController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+      return;
+    }
+
+    const input: HoldSlotInput = req.body;
+    const { holdKey, expiresAt } = await holdSlot(req.user.id, input.doctorId, input.slotStartTime);
+
+    res.status(201).json({
+      message: 'Slot held successfully for 5 minutes',
+      hold: {
+        holdKey,
+        doctorId: input.doctorId,
+        slotStartTime: input.slotStartTime,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    if (error.message.includes('currently held')) {
+      res.status(409).json({ error: 'Conflict', message: error.message });
+      return;
+    }
+    console.error('HoldSlot Error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * POST /api/appointments/release-hold
+ * Releases an active slot hold for an authenticated patient.
+ */
+export async function releaseHoldController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+      return;
+    }
+
+    const input: HoldSlotInput = req.body;
+    const released = await releaseHold(req.user.id, input.doctorId, input.slotStartTime);
+
+    res.status(200).json({
+      message: released ? 'Slot hold released successfully' : 'No active hold found or already released',
+      released,
+    });
+  } catch (error: any) {
+    console.error('ReleaseHold Error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
+

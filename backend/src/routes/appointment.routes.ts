@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { bookAppointmentSchema } from '../validators/appointment.validator';
+import { bookAppointmentSchema, holdSlotSchema } from '../validators/appointment.validator';
 import {
   getDoctorsController,
   getDoctorSlotsController,
@@ -9,6 +9,8 @@ import {
   cancelAppointmentController,
   rescheduleAppointmentController,
   getPatientAppointmentsController,
+  holdSlotController,
+  releaseHoldController,
 } from '../controllers/appointment.controller';
 
 export const doctorsRouter = Router();
@@ -34,6 +36,20 @@ doctorsRouter.get('/:doctorId/slots', getDoctorSlotsController);
  * @access  Private (Authenticated Patient)
  */
 appointmentsRouter.get('/my', authenticate, getPatientAppointmentsController);
+
+/**
+ * @route   POST /api/appointments/hold
+ * @desc    Reserves a doctor slot for 5 minutes for an authenticated patient
+ * @access  Private (Authenticated Patient)
+ */
+appointmentsRouter.post('/hold', authenticate, validateBody(holdSlotSchema), holdSlotController);
+
+/**
+ * @route   POST /api/appointments/release-hold
+ * @desc    Releases an active slot hold for an authenticated patient
+ * @access  Private (Authenticated Patient)
+ */
+appointmentsRouter.post('/release-hold', authenticate, validateBody(holdSlotSchema), releaseHoldController);
 
 /**
  * @route   POST /api/appointments

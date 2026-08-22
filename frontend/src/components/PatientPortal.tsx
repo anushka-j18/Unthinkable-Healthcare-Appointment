@@ -108,6 +108,8 @@ export const PatientPortal: React.FC = () => {
   const [isLeaveDay, setIsLeaveDay] = useState<boolean>(false);
   const [isWorkingDay, setIsWorkingDay] = useState<boolean>(true);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [holdTimeRemaining, setHoldTimeRemaining] = useState<number>(0);
+  const [holdTimerId, setHoldTimerId] = useState<any>(null);
 
   // Booking & Symptoms State
   const [symptoms, setSymptoms] = useState<string>('');
@@ -131,6 +133,65 @@ export const PatientPortal: React.FC = () => {
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(null), 5000);
+  };
+
+  const startHoldTimer = (durationSeconds: number = 300) => {
+    if (holdTimerId) clearInterval(holdTimerId);
+    setHoldTimeRemaining(durationSeconds);
+    const interval = setInterval(() => {
+      setHoldTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setError('Your 5-minute slot hold has expired. Please select a slot again.');
+          setSelectedSlot(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    setHoldTimerId(interval);
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleSelectSlot = async (slot: Slot) => {
+    if (!selectedDoctor || !selectedDoctor.doctorProfile) return;
+    setSelectedSlot(slot);
+    setError(null);
+
+    if (token) {
+      try {
+        const res = await fetch('/api/appointments/hold', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            doctorId: selectedDoctor.doctorProfile.id,
+            slotStartTime: slot.slotStartTime,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 409) {
+            setError(data.message || 'This slot is currently reserved by another patient.');
+            setSelectedSlot(null);
+            fetchSlots(selectedDoctor.doctorProfile.id, selectedDate);
+            return;
+          }
+        } else {
+          startHoldTimer(300);
+        }
+      } catch (err) {
+        console.error('Failed to acquire slot hold:', err);
+      }
+    }
   };
 
   useEffect(() => {
@@ -679,7 +740,7 @@ export const PatientPortal: React.FC = () => {
                           <button
                             key={slot.slotStartTime}
                             disabled={!slot.isAvailable}
-                            onClick={() => setSelectedSlot(slot)}
+                            onClick={() => handleSelectSlot(slot)}
                             style={{
                               padding: '0.5rem',
                               borderRadius: '8px',
@@ -693,7 +754,7 @@ export const PatientPortal: React.FC = () => {
                             }}
                           >
                             {startTimeStr}
-                            {!slot.isAvailable && <span style={{ display: 'block', fontSize: '0.7rem', color: '#f87171' }}>Booked</span>}
+                            {!slot.isAvailable && <span style={{ display: 'block', fontSize: '0.7rem', color: '#f87171' }}>Unavailable</span>}
                           </button>
                         );
                       })}
@@ -702,6 +763,11 @@ export const PatientPortal: React.FC = () => {
 
                   {selectedSlot && (
                     <form onSubmit={handleBookAppointment} className="admin-form" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                      {holdTimeRemaining > 0 && (
+                        <div className="status-pill online" style={{ marginBottom: '1rem', width: '100%', justifyContent: 'center' }}>
+                          <span>⏱️ Temporary Reservation Active — Slot Held for <strong>{formatTimer(holdTimeRemaining)}</strong></span>
+                        </div>
+                      )}
                       <div className="form-group">
                         <label><FileText size={16} /> Pre-Visit Symptoms Questionnaire (AI Processed)</label>
                         <textarea

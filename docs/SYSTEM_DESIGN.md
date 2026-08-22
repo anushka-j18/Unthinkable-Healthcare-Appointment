@@ -31,14 +31,11 @@ Doctor leave scheduling and appointment displacement are managed seamlessly acro
 
 ---
 
-## 3. Slot Hold Mechanism (Known Gap & Proposed Design)
-- **Current Status (Known Gap)**: The system relies on direct atomic booking without temporary transient reservations while patients complete pre-visit intake forms.
-
-- **Proposed Architecture**:
-  - **Redis-Backed TTL Hold**: Introduce a 5-minute temporary lock using Redis key `slot_hold:{doctorId}:{timestamp}` or a `SlotHold` table (`id`, `doctorId`, `patientId`, `slotStartTime`, `expiresAt`, `status: HELD|EXPIRED|CONVERTED`).
-  - **Hold Acquisition**: `POST /api/appointments/hold` reserves the slot for 5 minutes.
-  - **Availability Filtering**: `calculateAvailableSlots()` filters out slots with active, non-expired holds (`expiresAt > NOW()`).
-  - **Conversion**: During `bookAppointment()`, the transaction verifies the hold token, converts status to `CONVERTED`, creates `Appointment`, and releases the Redis lock.
+## 3. Transient 5-Minute Slot Hold Mechanism (Fully Implemented)
+- **Architecture**: A Redis-backed temporary reservation layer with thread-safe in-memory fallback implemented in [`backend/src/services/hold.service.ts`](file:///Users/anushka/Desktop/Summer%20Work%202026/Unthinkable%20Health%20Appointment%20/Unthinkable-Healthcare-Appointment/backend/src/services/hold.service.ts).
+- **Hold Acquisition**: When a patient selects a time slot, `POST /api/appointments/hold` reserves the slot for 5 minutes (300s TTL key: `slot_hold:{doctorId}:{timestamp}`).
+- **Availability Filtering**: [`calculateAvailableSlots()`](file:///Users/anushka/Desktop/Summer%20Work%202026/Unthinkable%20Health%20Appointment%20/Unthinkable-Healthcare-Appointment/backend/src/services/booking.service.ts) queries `isSlotHeldByOther()` and marks held slots as `isAvailable: false`.
+- **Conflict Rejection & Release**: `bookAppointment()` verifies `isSlotHeldByOther()` before database insertion, throwing `SlotUnavailableError` (409 Conflict) if held by another patient. Upon successful booking or explicit release (`POST /api/appointments/release-hold`), the hold key is deleted.
 
 ---
 

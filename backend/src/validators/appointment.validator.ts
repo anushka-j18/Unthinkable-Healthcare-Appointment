@@ -18,6 +18,14 @@ export const bookAppointmentSchema = z.object({
   symptoms: z.string().trim().optional(),
 });
 
+export const holdSlotSchema = z.object({
+  doctorId: z.string().min(1, 'doctorId is required'),
+  slotStartTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid slotStartTime. Expected valid ISO date timestamp',
+  }),
+});
+
 export type SearchDoctorQuery = z.infer<typeof searchDoctorQuerySchema>;
 export type GetSlotsQuery = z.infer<typeof getSlotsQuerySchema>;
 export type BookAppointmentInput = z.infer<typeof bookAppointmentSchema>;
+export type HoldSlotInput = z.infer<typeof holdSlotSchema>;
