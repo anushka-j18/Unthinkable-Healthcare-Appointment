@@ -14,7 +14,11 @@ import {
   Lock,
   LogOut,
   Mail,
-  User
+  User,
+  Search,
+  Calendar,
+  Send,
+  Phone
 } from 'lucide-react';
 
 interface LeaveDay {
@@ -55,6 +59,71 @@ interface AffectedAppointment {
   };
 }
 
+interface DaySchedule {
+  active: boolean;
+  start: string;
+  end: string;
+}
+
+type WeeklyWorkingHours = Record<string, DaySchedule>;
+
+const DAYS_OF_WEEK = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+];
+
+const getDefaultWeeklyHours = (): WeeklyWorkingHours => ({
+  monday: { active: true, start: '09:00', end: '17:00' },
+  tuesday: { active: true, start: '09:00', end: '17:00' },
+  wednesday: { active: true, start: '09:00', end: '17:00' },
+  thursday: { active: true, start: '09:00', end: '17:00' },
+  friday: { active: true, start: '09:00', end: '17:00' },
+  saturday: { active: false, start: '09:00', end: '13:00' },
+  sunday: { active: false, start: '09:00', end: '13:00' },
+});
+
+function parseWorkingHoursJson(rawJson: any): WeeklyWorkingHours {
+  const defaults = getDefaultWeeklyHours();
+  if (!rawJson || typeof rawJson !== 'object') return defaults;
+
+  const result: WeeklyWorkingHours = { ...defaults };
+  DAYS_OF_WEEK.forEach(({ key }) => {
+    const dayData = rawJson[key];
+    if (dayData && dayData.start && dayData.end) {
+      result[key] = {
+        active: true,
+        start: dayData.start,
+        end: dayData.end,
+      };
+    } else {
+      result[key] = {
+        active: false,
+        start: '09:00',
+        end: '17:00',
+      };
+    }
+  });
+  return result;
+}
+
+function buildWorkingHoursPayload(weekly: WeeklyWorkingHours): Record<string, { start: string; end: string }> {
+  const payload: Record<string, { start: string; end: string }> = {};
+  DAYS_OF_WEEK.forEach(({ key }) => {
+    if (weekly[key]?.active) {
+      payload[key] = {
+        start: weekly[key].start || '09:00',
+        end: weekly[key].end || '17:00',
+      };
+    }
+  });
+  return payload;
+}
+
 export const AdminPortal: React.FC = () => {
   const [token, setToken] = useState<string>(localStorage.getItem('adminToken') || '');
   const [adminUser, setAdminUser] = useState<any>(null);
@@ -62,6 +131,7 @@ export const AdminPortal: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState<string>('admin@example.com');
@@ -79,6 +149,7 @@ export const AdminPortal: React.FC = () => {
     slotDurationMinutes: 30,
     bio: '',
   });
+  const [createWorkingHours, setCreateWorkingHours] = useState<WeeklyWorkingHours>(getDefaultWeeklyHours());
 
   // Edit Doctor Modal state
   const [editingDoctor, setEditingDoctor] = useState<DoctorUser | null>(null);
@@ -89,6 +160,7 @@ export const AdminPortal: React.FC = () => {
     slotDurationMinutes: 30,
     bio: '',
   });
+  const [editWorkingHours, setEditWorkingHours] = useState<WeeklyWorkingHours>(getDefaultWeeklyHours());
 
   // Mark Leave Modal state
   const [leaveDoctor, setLeaveDoctor] = useState<DoctorUser | null>(null);
@@ -103,7 +175,7 @@ export const AdminPortal: React.FC = () => {
     setTimeout(() => setSuccessMsg(null), 5000);
   };
 
-  // 1. Fetch current profile if token exists
+  // 1. Fetch current profile & doctors if token exists
   useEffect(() => {
     if (token) {
       fetchAdminProfile();
@@ -120,7 +192,6 @@ export const AdminPortal: React.FC = () => {
         const data = await res.json();
         setAdminUser(data.user);
       } else {
-        // Token expired/invalid
         setToken('');
         localStorage.removeItem('adminToken');
       }
@@ -129,7 +200,7 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 2. Fetch list of doctors
+  // 2. Fetch list of doctors (GET /api/admin/doctors)
   const fetchDoctors = async () => {
     setLoading(true);
     setError(null);
@@ -149,7 +220,7 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 3. Admin Login or Register Quick Action
+  // 3. Admin Login handler
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -163,7 +234,7 @@ export const AdminPortal: React.FC = () => {
 
       let data = await res.json();
 
-      // If user doesn't exist yet, auto-register as ADMIN for instant demo convenience
+      // Auto-register as ADMIN if credentials don't exist yet (for demo convenience)
       if (res.status === 401 && data.message?.includes('Invalid')) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
@@ -204,18 +275,23 @@ export const AdminPortal: React.FC = () => {
     setDoctors([]);
   };
 
-  // 4. Create Doctor Handler
+  // 4. Create Doctor Handler (POST /api/admin/doctors)
   const handleCreateDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
+      const payload = {
+        ...createForm,
+        workingHours: buildWorkingHoursPayload(createWorkingHours),
+      };
+
       const res = await fetch('/api/admin/doctors', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -233,6 +309,7 @@ export const AdminPortal: React.FC = () => {
         slotDurationMinutes: 30,
         bio: '',
       });
+      setCreateWorkingHours(getDefaultWeeklyHours());
       showSuccess(`Dr. ${data.doctor.name} created successfully!`);
       fetchDoctors();
     } catch (err: any) {
@@ -240,7 +317,7 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 5. Edit Doctor Handler
+  // 5. Open & Update Doctor Handler (PUT /api/admin/doctors/:doctorId)
   const openEditModal = (doctor: DoctorUser) => {
     setEditingDoctor(doctor);
     setEditForm({
@@ -250,6 +327,7 @@ export const AdminPortal: React.FC = () => {
       slotDurationMinutes: doctor.doctorProfile?.slotDurationMinutes || 30,
       bio: doctor.doctorProfile?.bio || '',
     });
+    setEditWorkingHours(parseWorkingHoursJson(doctor.doctorProfile?.workingHours));
   };
 
   const handleUpdateDoctor = async (e: React.FormEvent) => {
@@ -257,13 +335,18 @@ export const AdminPortal: React.FC = () => {
     if (!editingDoctor || !editingDoctor.doctorProfile) return;
     setError(null);
     try {
+      const payload = {
+        ...editForm,
+        workingHours: buildWorkingHoursPayload(editWorkingHours),
+      };
+
       const res = await fetch(`/api/admin/doctors/${editingDoctor.doctorProfile.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -279,10 +362,9 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 6. Mark Leave Handler
+  // 6. Mark Leave Handler (POST /api/admin/doctors/:doctorId/leave)
   const openLeaveModal = (doctor: DoctorUser) => {
     setLeaveDoctor(doctor);
-    // Default to tomorrow's date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setLeaveDate(tomorrow.toISOString().split('T')[0]);
@@ -321,6 +403,90 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  // Filtered Doctors list
+  const filteredDoctors = doctors.filter((doc) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const nameMatch = doc.name.toLowerCase().includes(query);
+    const emailMatch = doc.email.toLowerCase().includes(query);
+    const specMatch = doc.doctorProfile?.specialisation.toLowerCase().includes(query) || false;
+    return nameMatch || emailMatch || specMatch;
+  });
+
+  // Working Hours Schedule Editor Subcomponent
+  const renderWorkingHoursEditor = (
+    weeklyState: WeeklyWorkingHours,
+    setWeeklyState: React.Dispatch<React.SetStateAction<WeeklyWorkingHours>>
+  ) => {
+    const handleToggleDay = (dayKey: string) => {
+      setWeeklyState((prev) => ({
+        ...prev,
+        [dayKey]: {
+          ...prev[dayKey],
+          active: !prev[dayKey].active,
+        },
+      }));
+    };
+
+    const handleTimeChange = (dayKey: string, field: 'start' | 'end', val: string) => {
+      setWeeklyState((prev) => ({
+        ...prev,
+        [dayKey]: {
+          ...prev[dayKey],
+          [field]: val,
+        },
+      }));
+    };
+
+    return (
+      <div className="working-hours-builder">
+        <h4 className="builder-title"><Clock size={16} /> Weekly Working Hours Schedule</h4>
+        <p className="builder-sub">Configure active working days and daily consultation start/end hours.</p>
+        
+        <div className="hours-grid">
+          {DAYS_OF_WEEK.map(({ key, label }) => {
+            const dayConfig = weeklyState[key] || { active: false, start: '09:00', end: '17:00' };
+            return (
+              <div className={`hours-row ${dayConfig.active ? 'active-day' : 'inactive-day'}`} key={key}>
+                <div className="day-label-group">
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={dayConfig.active}
+                      onChange={() => handleToggleDay(key)}
+                    />
+                    <span className="slider" />
+                  </label>
+                  <span className="day-name">{label}</span>
+                </div>
+
+                {dayConfig.active ? (
+                  <div className="time-pickers">
+                    <input
+                      type="time"
+                      value={dayConfig.start}
+                      onChange={(e) => handleTimeChange(key, 'start', e.target.value)}
+                      className="time-input"
+                    />
+                    <span className="time-sep">to</span>
+                    <input
+                      type="time"
+                      value={dayConfig.end}
+                      onChange={(e) => handleTimeChange(key, 'end', e.target.value)}
+                      className="time-input"
+                    />
+                  </div>
+                ) : (
+                  <span className="off-day-pill">Day Off</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-portal-container">
       {/* Top Banner / Auth State */}
@@ -331,7 +497,7 @@ export const AdminPortal: React.FC = () => {
           </div>
           <div>
             <h2>Admin Portal — Doctor Management</h2>
-            <p>Manage doctor profiles, working schedules, slot durations, and scheduled leave days.</p>
+            <p>Manage doctor profiles, working schedules, slot durations, and mark scheduled leave days.</p>
           </div>
         </div>
 
@@ -346,7 +512,7 @@ export const AdminPortal: React.FC = () => {
         ) : null}
       </div>
 
-      {/* Alerts */}
+      {/* Dynamic Alerts */}
       {error && (
         <div className="alert-box alert-error">
           <AlertTriangle size={20} />
@@ -407,12 +573,28 @@ export const AdminPortal: React.FC = () => {
           </form>
         </div>
       ) : (
-        /* Doctor Management Dashboard */
+        /* Main Dashboard Content */
         <div className="dashboard-content">
+          {/* Action Bar & Search Filter */}
           <div className="dashboard-actions-bar">
+            <div className="search-filter-box">
+              <Search size={18} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search by doctor name, email, or specialisation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
             <div className="stats-pill">
               <Stethoscope size={18} />
-              <span><strong>{doctors.length}</strong> Total Doctors</span>
+              <span><strong>{filteredDoctors.length}</strong> / {doctors.length} Doctors</span>
             </div>
 
             <div className="actions-right">
@@ -420,24 +602,33 @@ export const AdminPortal: React.FC = () => {
                 <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh
               </button>
               <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-                <UserPlus size={18} /> Add New Doctor
+                <UserPlus size={18} /> Onboard New Doctor
               </button>
             </div>
           </div>
 
           {/* Doctors Grid */}
           {loading && doctors.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading doctors...</p>
-          ) : doctors.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '3rem' }}>
+              Loading doctor profiles from server...
+            </p>
+          ) : filteredDoctors.length === 0 ? (
             <div className="empty-state">
               <Stethoscope size={48} />
-              <h3>No Doctors Registered Yet</h3>
-              <p>Click "Add New Doctor" above to create your first doctor profile.</p>
+              <h3>No Doctors Found</h3>
+              <p>
+                {searchQuery
+                  ? `No doctors match your query "${searchQuery}".`
+                  : 'Click "Onboard New Doctor" above to register your first doctor.'}
+              </p>
             </div>
           ) : (
             <div className="doctors-grid">
-              {doctors.map((doc) => {
+              {filteredDoctors.map((doc) => {
                 const profile = doc.doctorProfile;
+                const parsedHours = parseWorkingHoursJson(profile?.workingHours);
+                const activeDaysCount = Object.values(parsedHours).filter((d) => d.active).length;
+
                 return (
                   <div className="doctor-card" key={doc.id}>
                     <div className="doc-card-header">
@@ -446,8 +637,8 @@ export const AdminPortal: React.FC = () => {
                       </div>
                       <div className="doc-info">
                         <h3>{doc.name}</h3>
-                        <p className="doc-email">{doc.email}</p>
-                        {doc.phone && <p className="doc-phone">{doc.phone}</p>}
+                        <p className="doc-email"><Mail size={14} /> {doc.email}</p>
+                        {doc.phone && <p className="doc-phone"><Phone size={14} /> {doc.phone}</p>}
                       </div>
                     </div>
 
@@ -460,6 +651,14 @@ export const AdminPortal: React.FC = () => {
                       </span>
                     </div>
 
+                    {/* Working Hours Summary Pill */}
+                    <div className="working-hours-summary">
+                      <Clock size={14} className="summary-icon" />
+                      <span>
+                        <strong>{activeDaysCount} Days/wk</strong> ({DAYS_OF_WEEK.filter(({ key }) => parsedHours[key]?.active).map(({ label }) => label.slice(0, 3)).join(', ')})
+                      </span>
+                    </div>
+
                     {profile?.bio && (
                       <p className="doc-bio">{profile.bio}</p>
                     )}
@@ -467,11 +666,11 @@ export const AdminPortal: React.FC = () => {
                     {/* Scheduled Leave Days */}
                     {profile?.leaveDays && profile.leaveDays.length > 0 && (
                       <div className="leave-days-section">
-                        <span className="leave-title"><CalendarX size={14} /> Marked Leave Days:</span>
+                        <span className="leave-title"><CalendarX size={14} /> Scheduled Leave Days ({profile.leaveDays.length}):</span>
                         <div className="leave-pills">
                           {profile.leaveDays.map((leave) => (
-                            <span className="leave-pill" key={leave.id} title={leave.reason || 'Leave day'}>
-                              {new Date(leave.date).toLocaleDateString()}
+                            <span className="leave-pill" key={leave.id} title={leave.reason || 'Scheduled Doctor Leave'}>
+                              <Calendar size={12} /> {new Date(leave.date).toLocaleDateString()}
                             </span>
                           ))}
                         </div>
@@ -481,10 +680,10 @@ export const AdminPortal: React.FC = () => {
                     {/* Card Actions */}
                     <div className="doc-card-actions">
                       <button className="btn-action edit" onClick={() => openEditModal(doc)}>
-                        <Edit size={16} /> Edit Profile
+                        <Edit size={16} /> Edit Profile & Schedule
                       </button>
                       <button className="btn-action leave" onClick={() => openLeaveModal(doc)}>
-                        <CalendarX size={16} /> Mark Leave
+                        <CalendarX size={16} /> Mark Leave Day
                       </button>
                     </div>
                   </div>
@@ -498,9 +697,9 @@ export const AdminPortal: React.FC = () => {
       {/* --- MODAL 1: Create Doctor Modal --- */}
       {showCreateModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content modal-lg">
             <div className="modal-header">
-              <h3><UserPlus size={20} /> Create Doctor Profile</h3>
+              <h3><UserPlus size={20} /> Onboard New Doctor Profile</h3>
               <button className="btn-close" onClick={() => setShowCreateModal(false)}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreateDoctor} className="admin-form">
@@ -555,7 +754,7 @@ export const AdminPortal: React.FC = () => {
                     type="text"
                     value={createForm.specialisation}
                     onChange={(e) => setCreateForm({ ...createForm, specialisation: e.target.value })}
-                    placeholder="Cardiology, Dermatology, etc."
+                    placeholder="Cardiology, Dermatology, General Medicine"
                     required
                   />
                 </div>
@@ -577,26 +776,29 @@ export const AdminPortal: React.FC = () => {
               <div className="form-group">
                 <label>Biography / Professional Notes</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={createForm.bio}
                   onChange={(e) => setCreateForm({ ...createForm, bio: e.target.value })}
                   placeholder="Doctor's qualifications, clinical expertise, and background."
                 />
               </div>
 
+              {/* Working Hours Builder */}
+              {renderWorkingHoursEditor(createWorkingHours, setCreateWorkingHours)}
+
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Doctor Profile</button>
+                <button type="submit" className="btn-primary">Onboard Doctor Profile</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 2: Edit Doctor Profile Modal --- */}
+      {/* --- MODAL 2: Edit Doctor Profile & Schedule Modal --- */}
       {editingDoctor && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content modal-lg">
             <div className="modal-header">
               <h3><Edit size={20} /> Edit Profile — {editingDoctor.name}</h3>
               <button className="btn-close" onClick={() => setEditingDoctor(null)}><X size={18} /></button>
@@ -649,15 +851,18 @@ export const AdminPortal: React.FC = () => {
               <div className="form-group">
                 <label>Biography</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={editForm.bio}
                   onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
                 />
               </div>
 
+              {/* Working Hours Builder */}
+              {renderWorkingHoursEditor(editWorkingHours, setEditWorkingHours)}
+
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setEditingDoctor(null)}>Cancel</button>
-                <button type="submit" className="btn-primary">Save Changes</button>
+                <button type="submit" className="btn-primary">Save Profile & Schedule</button>
               </div>
             </form>
           </div>
@@ -669,7 +874,7 @@ export const AdminPortal: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3><CalendarX size={20} /> Mark Leave Day — {leaveDoctor.name}</h3>
+              <h3><CalendarX size={20} /> Schedule Leave Day — {leaveDoctor.name}</h3>
               <button className="btn-close" onClick={() => setLeaveDoctor(null)}><X size={18} /></button>
             </div>
             <form onSubmit={handleMarkLeave} className="admin-form">
@@ -689,68 +894,79 @@ export const AdminPortal: React.FC = () => {
                   type="text"
                   value={leaveReason}
                   onChange={(e) => setLeaveReason(e.target.value)}
-                  placeholder="Medical Conference, Personal Leave, etc."
+                  placeholder="Medical Conference, Personal Leave, Annual Break, etc."
                 />
               </div>
 
-              <p className="notice-text">
-                ℹ️ The system will automatically check for any existing patient appointments scheduled on this date and display affected bookings.
-              </p>
+              <div className="notice-box">
+                <AlertTriangle size={18} color="#06b6d4" />
+                <p>
+                  Setting a leave day will check for existing patient bookings on that date. Any conflicting bookings will be cancelled and patients will receive notification emails automatically.
+                </p>
+              </div>
 
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setLeaveDoctor(null)}>Cancel</button>
-                <button type="submit" className="btn-danger">Confirm & Mark Leave</button>
+                <button type="submit" className="btn-danger">Confirm & Schedule Leave</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 4: Affected Appointments Result Modal --- */}
+      {/* --- MODAL 4: Affected Appointments Conflict Report Modal --- */}
       {showLeaveResultModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content modal-lg">
             <div className="modal-header">
-              <h3><AlertTriangle size={20} color="#f59e0b" /> Affected Bookings Report</h3>
+              <h3><AlertTriangle size={20} color="#f59e0b" /> Booking Conflict & Audit Report</h3>
               <button className="btn-close" onClick={() => setShowLeaveResultModal(false)}><X size={18} /></button>
             </div>
 
             {affectedAppointments.length === 0 ? (
               <div className="affected-result-clean">
-                <CheckCircle size={40} color="#10b981" />
-                <h4>No Affected Bookings</h4>
-                <p>There are no existing patient appointments scheduled on this leave date.</p>
+                <CheckCircle size={48} color="#34d399" />
+                <h4>No Conflicting Bookings</h4>
+                <p>There are no existing patient appointments scheduled on this leave date. The schedule has been updated with zero disruptions.</p>
               </div>
             ) : (
               <div className="affected-result-list">
                 <div className="alert-warning-banner">
                   <AlertTriangle size={20} />
-                  <span><strong>{affectedAppointments.length}</strong> patient booking(s) fall on this leave date.</span>
+                  <span>
+                    <strong>{affectedAppointments.length}</strong> patient booking(s) coincided with this leave date and were automatically cancelled.
+                  </span>
                 </div>
 
                 <div className="affected-items">
                   {affectedAppointments.map((appt) => (
                     <div className="affected-card" key={appt.id}>
                       <div className="affected-header">
-                        <span className="patient-name">{appt.patient.name}</span>
-                        <span className="status-badge">{appt.status}</span>
+                        <span className="patient-name"><User size={16} /> {appt.patient.name}</span>
+                        <span className="status-badge cancelled">{appt.status}</span>
                       </div>
-                      <p className="patient-contact">📧 {appt.patient.email} {appt.patient.phone ? `| 📞 ${appt.patient.phone}` : ''}</p>
-                      <p className="slot-time">
-                        ⏰ Slot: {new Date(appt.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div className="patient-details-grid">
+                        <p><Mail size={14} /> {appt.patient.email}</p>
+                        {appt.patient.phone && <p><Phone size={14} /> {appt.patient.phone}</p>}
+                        <p className="slot-time">
+                          <Clock size={14} /> Slot: {new Date(appt.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <p className="future-notice">
-                  ⚠️ <em>Note: Patient notification dispatch and rescheduling workflows will be configured in a future step.</em>
-                </p>
+                <div className="email-dispatch-notice">
+                  <Send size={18} color="#34d399" />
+                  <span>
+                    <strong>Automated Notification Dispatched:</strong> Patient leave-cancellation emails (with rebooking instructions) have been dispatched via Nodemailer/SMTP and logged to the notification audit database.
+                  </span>
+                </div>
               </div>
             )}
 
             <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowLeaveResultModal(false)}>Close Report</button>
+              <button className="btn-primary" onClick={() => setShowLeaveResultModal(false)}>Acknowledge & Close</button>
             </div>
           </div>
         </div>
