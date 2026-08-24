@@ -23,6 +23,7 @@
     "test:patient": "ts-node scripts/test-patient-ui-flow.ts",
     "test:doctor": "ts-node scripts/test-doctor-ui-flow.ts",
     "test:hold": "ts-node scripts/test-slot-hold.ts",
+    "seed": "ts-node scripts/seed.ts",
     "dev:worker": "ts-node src/workers/queue.worker.ts"
   },
   "dependencies": {

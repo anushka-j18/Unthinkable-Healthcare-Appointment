@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Stethoscope,
   Calendar,
-  Clock,
   User,
   FileText,
   Plus,
@@ -17,10 +15,7 @@ import {
   HelpCircle,
   RefreshCw,
   LogOut,
-  Mail,
-  CalendarCheck,
-  AlertTriangle,
-  Info
+  CalendarCheck
 } from 'lucide-react';
 
 interface PatientUser {
@@ -90,8 +85,8 @@ export const DoctorPortal: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState<string>('dr.house@healthcare.com');
-  const [loginPassword, setLoginPassword] = useState<string>('DoctorPassword123!');
+  const [loginEmail, setLoginEmail] = useState<string>('dr.smith@healthcare.com');
+  const [loginPassword, setLoginPassword] = useState<string>('Password123!');
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Post-Visit Modal state
@@ -103,6 +98,9 @@ export const DoctorPortal: React.FC = () => {
     { name: '', dosage: '500mg', frequency: 'Twice daily', durationDays: 7 },
   ]);
   const [isSubmittingNotes, setIsSubmittingNotes] = useState<boolean>(false);
+
+  // Selected Patient History view tab
+  const [selectedPatientAppt, setSelectedPatientAppt] = useState<Appointment | null>(null);
 
   // Alerts
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +146,11 @@ export const DoctorPortal: React.FC = () => {
         throw new Error(`Failed to load appointments (${res.status})`);
       }
       const data = await res.json();
-      setAppointments(data.appointments || []);
+      const appts = data.appointments || [];
+      setAppointments(appts);
+      if (appts.length > 0 && !selectedPatientAppt) {
+        setSelectedPatientAppt(appts[0]);
+      }
     } catch (err: any) {
       setError(err.message || 'Error loading appointments');
     } finally {
@@ -176,9 +178,9 @@ export const DoctorPortal: React.FC = () => {
           body: JSON.stringify({
             email: loginEmail,
             password: loginPassword,
-            name: 'Dr. Gregory House',
+            name: 'Dr. Sarah Smith',
             role: 'DOCTOR',
-            specialisation: 'Internal Medicine',
+            specialisation: 'Cardiology',
           }),
         });
         if (regRes.ok) {
@@ -228,12 +230,12 @@ export const DoctorPortal: React.FC = () => {
     setSelectedAppt(appt);
     setDoctorNotes(
       appt.postVisitNote?.doctorNotes ||
-        'Patient diagnosed with acute bacterial infection. Prescribed Amoxicillin 500mg TID for 7 days.'
+        'Patient presents with typical symptoms. Diagnostic assessment conducted. Prescribed medication course.'
     );
     if (appt.postVisitNote?.prescription && appt.postVisitNote.prescription.length > 0) {
       setPrescriptionItems(appt.postVisitNote.prescription);
     } else {
-      setPrescriptionItems([{ name: 'Amoxicillin', dosage: '500mg', frequency: 'Three times daily (TID)', durationDays: 7 }]);
+      setPrescriptionItems([{ name: 'Amoxicillin', dosage: '500mg', frequency: 'Twice daily', durationDays: 7 }]);
     }
   };
 
@@ -274,7 +276,7 @@ export const DoctorPortal: React.FC = () => {
         throw new Error(data.message || 'Failed to submit post-visit note');
       }
 
-      showSuccess(`Post-visit notes & prescription recorded! AI Patient Summary generated.`);
+      showSuccess(`Clinical notes & prescription saved! AI Patient Summary generated.`);
       setSelectedAppt(null);
       fetchDoctorAppointments();
     } catch (err: any) {
@@ -294,39 +296,31 @@ export const DoctorPortal: React.FC = () => {
     return true;
   });
 
+  const nextUrgentAppt = appointments.find((a) => a.symptomForm?.urgencyLevel === 'HIGH' || a.symptomForm?.urgencyLevel === 'URGENT') || appointments[0];
+
   return (
-    <div className="admin-portal-container">
-      {/* Top Banner */}
-      <div
-        className="admin-header-card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(30, 41, 59, 0.7) 100%)',
-          borderColor: 'rgba(16, 185, 129, 0.3)',
-        }}
-      >
-        <div className="admin-header-brand">
-          <div className="admin-badge-icon" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}>
-            <Stethoscope size={28} />
-          </div>
+    <div>
+      {/* Top Header Pill */}
+      {doctorUser && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h2>Doctor Clinical Consultations & Leave Dashboard</h2>
-            <p>Review pre-visit AI urgency levels & chief complaints, submit post-visit notes & prescriptions, and manage leave schedules.</p>
+            <span className="pill-tag pill-green">Clinical Portal</span>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '0.2rem' }}>Dr. {doctorUser.name}</h1>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+              Specialisation: <strong>{doctorProfile?.specialisation || 'General Medicine'}</strong>
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={handleConnectGoogleCalendar} title="Connect Google Calendar">
+              <CalendarCheck size={16} /> Sync Calendar
+            </button>
+            <button className="btn-secondary" onClick={handleLogout} style={{ color: '#8C2734' }}>
+              <LogOut size={16} /> Sign Out
+            </button>
           </div>
         </div>
-
-        {doctorUser ? (
-          <div className="admin-user-pill">
-            <User size={18} />
-            <span>Dr. {doctorUser.name} ({doctorProfile?.specialisation || 'DOCTOR'})</span>
-            <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={handleConnectGoogleCalendar} title="Connect Google Calendar">
-              <CalendarCheck size={14} /> Connect Google Calendar
-            </button>
-            <button className="btn-icon-logout" onClick={handleLogout} title="Logout">
-              <LogOut size={16} />
-            </button>
-          </div>
-        ) : null}
-      </div>
+      )}
 
       {/* Alerts */}
       {error && (
@@ -347,249 +341,290 @@ export const DoctorPortal: React.FC = () => {
 
       {/* Doctor Sign In Screen */}
       {!token ? (
-        <div className="card auth-card" style={{ maxWidth: '450px', margin: '2rem auto' }}>
-          <div className="auth-card-header">
-            <Lock size={24} />
-            <h3>Doctor Sign In</h3>
-            <p>Authenticate with Doctor credentials to access clinical tools.</p>
+        <div className="card-white" style={{ maxWidth: '480px', margin: '2rem auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div className="card-icon-wrapper" style={{ margin: '0 auto 1rem auto' }}>
+              <Lock size={24} />
+            </div>
+            <h2 className="card-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>Doctor Portal Sign In</h2>
+            <p className="card-desc" style={{ textAlign: 'center' }}>Authenticate with clinical credentials to view queues and submit post-visit notes.</p>
           </div>
-          <form onSubmit={handleDoctorLogin} className="admin-form">
+          <form onSubmit={handleDoctorLogin}>
             <div className="form-group">
-              <label>Doctor Email</label>
-              <div className="input-wrapper">
-                <Mail size={16} />
-                <input
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="dr.house@healthcare.com"
-                  required
-                />
-              </div>
+              <label className="form-label">Doctor Email</label>
+              <input
+                className="input-text"
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="dr.smith@healthcare.com"
+                required
+              />
             </div>
             <div className="form-group">
-              <label>Password</label>
-              <div className="input-wrapper">
-                <Lock size={16} />
-                <input
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                />
-              </div>
+              <label className="form-label">Password</label>
+              <input
+                className="input-text"
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Password"
+                required
+              />
             </div>
-            <button type="submit" className="btn-primary" disabled={isLoggingIn} style={{ justifyContent: 'center', width: '100%' }}>
+            <button type="submit" className="btn-primary" disabled={isLoggingIn} style={{ width: '100%' }}>
               {isLoggingIn ? 'Authenticating...' : 'Sign In as Doctor'}
             </button>
           </form>
         </div>
       ) : (
-        /* Doctor Dashboard Main Tabs */
+        /* Doctor Dashboard Main View */
         <div>
-          {/* Sub Navigation Bar */}
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+          {/* 1. HERO CARD PATTERN: Next Urgent Patient / Dominant Queue Stat */}
+          <section className="hero-card">
+            <div className="hero-card-header">
+              <div>
+                <div className="hero-subtitle">Priority Queue Assessment</div>
+                <h2 className="hero-title">
+                  {nextUrgentAppt ? `Next Patient: ${nextUrgentAppt.patient.name}` : 'Queue Clear'}
+                </h2>
+              </div>
+              {nextUrgentAppt?.symptomForm?.urgencyLevel && (
+                <span className={`pill-tag ${nextUrgentAppt.symptomForm.urgencyLevel === 'HIGH' ? 'pill-pink' : 'pill-amber'}`}>
+                  ⚠️ {nextUrgentAppt.symptomForm.urgencyLevel} URGENCY TRIAGE
+                </span>
+              )}
+            </div>
+
+            {nextUrgentAppt ? (
+              <div>
+                <div className="hero-number">
+                  {nextUrgentAppt.symptomForm?.chiefComplaint || 'Consultation Reserved'}
+                </div>
+                <div className="hero-meta">
+                  <span>⏰ {new Date(nextUrgentAppt.slotStartTime).toLocaleString()}</span>
+                  <span>📧 {nextUrgentAppt.patient.email}</span>
+                  {nextUrgentAppt.patient.phone && <span>📞 {nextUrgentAppt.patient.phone}</span>}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="hero-number-sm">0 Urgent Flags</div>
+                <p style={{ color: 'var(--color-text-light-muted)', marginTop: '0.5rem' }}>All patients attended or no pending urgent triages in queue.</p>
+              </div>
+            )}
+          </section>
+
+          {/* Sub Navigation Utility Pills */}
+          <div className="utility-pill-bar" style={{ marginBottom: '2rem' }}>
             <button
-              className={`btn-secondary ${doctorTab === 'consultations' ? 'active-tab' : ''}`}
+              className={`utility-pill ${doctorTab === 'consultations' ? 'active' : ''}`}
               onClick={() => setDoctorTab('consultations')}
-              style={{
-                borderColor: doctorTab === 'consultations' ? '#34d399' : undefined,
-                background: doctorTab === 'consultations' ? 'rgba(16, 185, 129, 0.15)' : undefined,
-                color: doctorTab === 'consultations' ? '#34d399' : undefined,
-              }}
             >
-              <Activity size={18} /> Consultations & Pre-Visit AI ({appointments.length})
+              <Activity size={16} /> Consultations Queue ({appointments.length})
             </button>
 
             <button
-              className={`btn-secondary ${doctorTab === 'leaves' ? 'active-tab' : ''}`}
+              className={`utility-pill ${doctorTab === 'leaves' ? 'active' : ''}`}
               onClick={() => {
                 setDoctorTab('leaves');
                 fetchDoctorProfile();
               }}
-              style={{
-                borderColor: doctorTab === 'leaves' ? '#34d399' : undefined,
-                background: doctorTab === 'leaves' ? 'rgba(16, 185, 129, 0.15)' : undefined,
-                color: doctorTab === 'leaves' ? '#34d399' : undefined,
-              }}
             >
-              <Calendar size={18} /> Scheduled Leave Calendar ({doctorProfile?.leaveDays?.length || 0})
+              <Calendar size={16} /> Scheduled Leave Calendar ({doctorProfile?.leaveDays?.length || 0})
             </button>
           </div>
 
-          {/* TAB 1: CONSULTATIONS & PRE-VISIT AI */}
+          {/* TAB 1: CONSULTATIONS QUEUE & SAGE PATIENT HISTORY TIMELINE */}
           {doctorTab === 'consultations' && (
-            <div>
-              {/* Filter Pills Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    className={`btn-secondary ${filterMode === 'all' ? 'active-tab' : ''}`}
-                    onClick={() => setFilterMode('all')}
-                  >
-                    All ({appointments.length})
-                  </button>
-                  <button
-                    className={`btn-secondary ${filterMode === 'today' ? 'active-tab' : ''}`}
-                    onClick={() => setFilterMode('today')}
-                  >
-                    Today's Schedule
-                  </button>
-                  <button
-                    className={`btn-secondary ${filterMode === 'upcoming' ? 'active-tab' : ''}`}
-                    onClick={() => setFilterMode('upcoming')}
-                  >
-                    Upcoming
-                  </button>
-                  <button
-                    className={`btn-secondary ${filterMode === 'completed' ? 'active-tab' : ''}`}
-                    onClick={() => setFilterMode('completed')}
-                  >
-                    Completed
+            <div style={{ display: 'grid', gridTemplateColumns: selectedPatientAppt ? '1fr 1.2fr' : '1fr', gap: '1.5rem' }}>
+              
+              {/* Left Column: Today's Consultation Queue Grid */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <button className={`utility-pill ${filterMode === 'all' ? 'active-gold' : ''}`} onClick={() => setFilterMode('all')}>
+                      All ({appointments.length})
+                    </button>
+                    <button className={`utility-pill ${filterMode === 'today' ? 'active-gold' : ''}`} onClick={() => setFilterMode('today')}>
+                      Today
+                    </button>
+                    <button className={`utility-pill ${filterMode === 'upcoming' ? 'active-gold' : ''}`} onClick={() => setFilterMode('upcoming')}>
+                      Upcoming
+                    </button>
+                  </div>
+                  <button className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }} onClick={fetchDoctorAppointments} disabled={loading}>
+                    <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh
                   </button>
                 </div>
 
-                <button className="btn-secondary" onClick={fetchDoctorAppointments} disabled={loading}>
-                  <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh Roster
-                </button>
-              </div>
+                <div className="card-grid" style={{ gridTemplateColumns: '1fr' }}>
+                  {loading && appointments.length === 0 ? (
+                    <p style={{ color: 'var(--color-text-secondary)' }}>Loading roster...</p>
+                  ) : filteredAppointments.length === 0 ? (
+                    <div className="card-white" style={{ textAlign: 'center', padding: '2rem' }}>
+                      <Calendar size={36} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
+                      <p>No appointments match filter.</p>
+                    </div>
+                  ) : (
+                    filteredAppointments.map((appt) => {
+                      const isCompleted = appt.status === 'COMPLETED';
+                      const sf = appt.symptomForm;
+                      const urgency = sf?.urgencyLevel;
+                      const isSelected = selectedPatientAppt?.id === appt.id;
 
-              {loading && appointments.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)' }}>Loading schedule...</p>
-              ) : filteredAppointments.length === 0 ? (
-                <div className="empty-state">
-                  <Calendar size={48} />
-                  <h3>No Consultations Match Filter</h3>
-                  <p>No appointments found matching filter criteria.</p>
-                </div>
-              ) : (
-                <div className="doctors-grid" style={{ gridTemplateColumns: '1fr' }}>
-                  {filteredAppointments.map((appt) => {
-                    const isCompleted = appt.status === 'COMPLETED';
-                    const sf = appt.symptomForm;
-                    const note = appt.postVisitNote;
-                    const urgency = sf?.urgencyLevel;
-
-                    return (
-                      <div
-                        className="doctor-card"
-                        key={appt.id}
-                        style={{
-                          borderColor: urgency === 'HIGH' ? '#f87171' : isCompleted ? 'rgba(16, 185, 129, 0.4)' : undefined,
-                          background: urgency === 'HIGH' ? 'rgba(239, 68, 68, 0.05)' : undefined,
-                        }}
-                      >
-                        <div className="doc-card-header" style={{ justifyContent: 'space-between', width: '100%' }}>
-                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <div className="doc-avatar" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
-                              <User size={24} />
+                      return (
+                        <div
+                          key={appt.id}
+                          className="card-white"
+                          style={{
+                            borderColor: isSelected ? 'var(--color-accent-gold)' : urgency === 'HIGH' ? '#8C2734' : 'var(--color-border-subtle)',
+                            borderWidth: isSelected ? '2px' : '1px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setSelectedPatientAppt(appt)}
+                        >
+                          <div className="card-header" style={{ justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                              <div className="card-icon-wrapper">
+                                <User size={20} />
+                              </div>
+                              <div>
+                                <h3 className="card-title">{appt.patient.name}</h3>
+                                <p className="card-desc" style={{ margin: 0 }}>{appt.patient.email}</p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 style={{ fontSize: '1.2rem' }}>Patient: {appt.patient.name}</h3>
-                              <p className="doc-email">📧 {appt.patient.email} {appt.patient.phone ? `| 📞 ${appt.patient.phone}` : ''}</p>
-                              <p className="slot-time" style={{ marginTop: '0.2rem' }}>
-                                <Clock size={14} /> {new Date(appt.slotStartTime).toLocaleString()} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                            </div>
-                          </div>
 
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            {/* PROMINENT AI URGENCY LEVEL BADGE */}
-                            {urgency && (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.3rem',
-                                  padding: '0.35rem 0.75rem',
-                                  borderRadius: '9999px',
-                                  fontWeight: 700,
-                                  fontSize: '0.82rem',
-                                  color: urgency === 'HIGH' ? '#ffffff' : urgency === 'MEDIUM' ? '#fef08a' : '#a7f3d0',
-                                  background: urgency === 'HIGH' ? '#dc2626' : urgency === 'MEDIUM' ? '#d97706' : '#059669',
-                                  boxShadow: urgency === 'HIGH' ? '0 0 12px rgba(220, 38, 38, 0.5)' : undefined,
-                                }}
-                              >
-                                {urgency === 'HIGH' ? <AlertTriangle size={16} /> : urgency === 'MEDIUM' ? <AlertCircle size={16} /> : <Info size={16} />}
-                                {urgency} URGENCY
-                              </span>
-                            )}
-
-                            <span className={`status-pill ${isCompleted ? 'online' : 'loading'}`}>
-                              {appt.status}
+                            <span className={`pill-tag ${urgency === 'HIGH' ? 'pill-pink' : urgency === 'MEDIUM' ? 'pill-amber' : 'pill-green'}`}>
+                              {urgency ? `${urgency} URGENCY` : appt.status}
                             </span>
                           </div>
-                        </div>
 
-                        {/* PRE-VISIT AI SUMMARY & CHIEF COMPLAINT SURFACED CLEARLY */}
-                        {sf && (
-                          <div className="doc-bio" style={{ borderLeftColor: urgency === 'HIGH' ? '#ef4444' : '#60a5fa', background: 'rgba(0, 0, 0, 0.3)', marginTop: '1rem' }}>
-                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.5rem', fontSize: '1rem' }}>
-                              <Activity size={18} /> Pre-Visit AI Intake Summary
-                            </h4>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
+                            ⏰ <strong>{new Date(appt.slotStartTime).toLocaleString()}</strong>
+                          </div>
 
-                            <p style={{ marginBottom: '0.4rem' }}>
-                              <strong>Patient Symptoms:</strong> <em>"{sf.rawSymptoms}"</em>
+                          {sf?.rawSymptoms && (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-main)', fontStyle: 'italic', marginBottom: '0.75rem' }}>
+                              "{sf.rawSymptoms}"
                             </p>
+                          )}
 
-                            {sf.chiefComplaint && (
-                              <p style={{ marginBottom: '0.4rem', color: 'var(--text-main)' }}>
-                                <strong>Chief Complaint:</strong> {sf.chiefComplaint}
-                              </p>
-                            )}
-
-                            {sf.suggestedQuestions && sf.suggestedQuestions.length > 0 && (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <strong style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#fbbf24' }}>
-                                  <HelpCircle size={15} /> 3 AI-Suggested Questions for the Doctor:
-                                </strong>
-                                <ul style={{ paddingLeft: '1.2rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                  {sf.suggestedQuestions.map((q, idx) => (
-                                    <li key={idx} style={{ margin: '0.2rem 0' }}>{q}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* POST-VISIT CLINICAL SUMMARY & PRESCRIPTIONS DISPLAY */}
-                        {note && (
-                          <div className="doc-bio" style={{ borderLeftColor: '#34d399', background: 'rgba(16, 185, 129, 0.08)', marginTop: '0.75rem' }}>
-                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '0.4rem' }}>
-                              <CheckCircle size={16} /> Clinical Notes & AI Patient Summary
-                            </h4>
-                            <p><strong>Clinical Notes:</strong> {note.doctorNotes}</p>
-                            {note.patientSummary && (
-                              <p style={{ marginTop: '0.4rem', color: 'var(--text-main)' }}>
-                                <strong>AI Patient Summary:</strong> {note.patientSummary}
-                              </p>
-                            )}
-                            {note.prescription && note.prescription.length > 0 && (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <strong><Pill size={14} /> Prescribed Medications Schedule:</strong>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.3rem' }}>
-                                  {note.prescription.map((med, idx) => (
-                                    <span className="meta-tag slot-tag" key={idx}>
-                                      💊 <strong>{med.name}</strong> ({med.dosage}) — {med.frequency} [{med.durationDays || 7} days]
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Action Button */}
-                        <div className="doc-card-actions" style={{ marginTop: '1rem' }}>
-                          <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => openPostVisitModal(appt)}>
-                            <FileText size={16} /> {isCompleted ? 'Edit Post-Visit Notes & Prescription' : 'Submit Post-Visit Notes & Prescription'}
+                          <button className="btn-primary" style={{ width: '100%' }} onClick={() => openPostVisitModal(appt)}>
+                            <FileText size={14} /> {isCompleted ? 'Edit Notes & Prescription' : 'Submit Clinical Summary'}
                           </button>
                         </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: CARDIOLOGY-INSPIRED PATIENT TREATMENT HISTORY (MUTED SAGE SURFACE) */}
+              {selectedPatientAppt && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Activity size={18} /> Clinical History & Vitals Timeline: {selectedPatientAppt.patient.name}
+                  </h3>
+
+                  <div className="surface-sage">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <div>
+                        <span className="pill-tag pill-blue">Patient Profile</span>
+                        <h4 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0.2rem 0' }}>{selectedPatientAppt.patient.name}</h4>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{selectedPatientAppt.patient.email}</p>
                       </div>
-                    );
-                  })}
+                      <span className="pill-tag pill-amber">Cardiology / Internal Intake</span>
+                    </div>
+
+                    {/* Vitals Summary Grid (Replicating Cardiology Reference) */}
+                    <div className="timeline-vitals-grid" style={{ marginBottom: '1.5rem' }}>
+                      <div className="vital-box">
+                        <div className="vital-label">Blood Pressure</div>
+                        <div className="vital-value">120/80</div>
+                      </div>
+                      <div className="vital-box">
+                        <div className="vital-label">Heart Rate</div>
+                        <div className="vital-value">72 <span style={{ fontSize: '0.8rem' }}>bpm</span></div>
+                      </div>
+                      <div className="vital-box">
+                        <div className="vital-label">Triage Urgency</div>
+                        <div className="vital-value" style={{ fontSize: '1rem', color: '#1B562B' }}>
+                          {selectedPatientAppt.symptomForm?.urgencyLevel || 'LOW'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interactive Branching Timeline */}
+                    <div className="timeline-container">
+                      {/* Entry 1: Current Pre-Visit Intake */}
+                      <div className="timeline-item">
+                        <div className="timeline-node" />
+                        <div className="timeline-card">
+                          <div className="timeline-date">
+                            {new Date(selectedPatientAppt.slotStartTime).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                          <h4 className="timeline-title">Pre-Visit AI Symptom Triage</h4>
+                          
+                          {selectedPatientAppt.symptomForm ? (
+                            <div>
+                              <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                <strong>Chief Complaint:</strong> {selectedPatientAppt.symptomForm.chiefComplaint || selectedPatientAppt.symptomForm.rawSymptoms}
+                              </p>
+
+                              {selectedPatientAppt.symptomForm.suggestedQuestions && selectedPatientAppt.symptomForm.suggestedQuestions.length > 0 && (
+                                <div style={{ background: 'var(--color-bg-primary)', padding: '0.75rem', borderRadius: '12px', marginTop: '0.5rem' }}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent-gold-text)', marginBottom: '0.3rem' }}>
+                                    <HelpCircle size={12} /> AI Suggested Questions for Doctor:
+                                  </div>
+                                  <ul style={{ paddingLeft: '1rem', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                                    {selectedPatientAppt.symptomForm.suggestedQuestions.map((q, idx) => (
+                                      <li key={idx}>{q}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No pre-visit symptom form submitted.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Entry 2: Post-Visit Clinical Summary & Medications */}
+                      <div className="timeline-item">
+                        <div className="timeline-node" />
+                        <div className="timeline-card">
+                          <div className="timeline-date">Post-Visit Clinical Summary</div>
+                          {selectedPatientAppt.postVisitNote ? (
+                            <div>
+                              <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '0.5rem' }}>
+                                <strong>Doctor Notes:</strong> {selectedPatientAppt.postVisitNote.doctorNotes}
+                              </p>
+                              {selectedPatientAppt.postVisitNote.prescription && selectedPatientAppt.postVisitNote.prescription.length > 0 && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: '0.3rem' }}>
+                                    <Pill size={12} /> Prescriptions:
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {selectedPatientAppt.postVisitNote.prescription.map((med, idx) => (
+                                      <span key={idx} className="pill-tag pill-blue">
+                                        💊 {med.name} ({med.dosage}) — {med.frequency}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                              Post-visit notes pending. Click "Submit Clinical Summary" on the patient card to add.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -598,26 +633,26 @@ export const DoctorPortal: React.FC = () => {
           {/* TAB 2: SCHEDULED LEAVE CALENDAR */}
           {doctorTab === 'leaves' && (
             <div>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '1.2rem' }}>
-                <Calendar size={20} /> My Scheduled Leave Calendar ({doctorProfile?.leaveDays?.length || 0})
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Calendar size={20} /> My Scheduled Leave Days ({doctorProfile?.leaveDays?.length || 0})
               </h3>
 
               {!doctorProfile?.leaveDays || doctorProfile.leaveDays.length === 0 ? (
-                <div className="empty-state">
-                  <Calendar size={48} />
-                  <h3>No Scheduled Leave Days</h3>
-                  <p>You have no scheduled leave days recorded. Leave schedules managed via Admin Portal will appear here.</p>
+                <div className="card-white" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <Calendar size={48} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
+                  <h3>No Scheduled Leave</h3>
+                  <p className="card-desc">Your approved leave schedules managed via Admin will appear here.</p>
                 </div>
               ) : (
-                <div className="doctors-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                <div className="card-grid">
                   {doctorProfile.leaveDays.map((leave) => (
-                    <div className="card" key={leave.id} style={{ borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f87171', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        <Calendar size={18} />
-                        <span>{new Date(leave.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                      </div>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                        <strong>Reason:</strong> {leave.reason || 'Scheduled Leave Day'}
+                    <div className="card-white" key={leave.id}>
+                      <span className="pill-tag pill-pink" style={{ marginBottom: '0.5rem' }}>SCHEDULED LEAVE</span>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+                        {new Date(leave.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                      </h4>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
+                        Reason: {leave.reason || 'Personal / Academic Leave'}
                       </p>
                     </div>
                   ))}
@@ -628,44 +663,46 @@ export const DoctorPortal: React.FC = () => {
         </div>
       )}
 
-      {/* --- MODAL: POST-VISIT CONSULTATION NOTES & PRESCRIPTION BUILDER --- */}
+      {/* --- MODAL: POST-VISIT CLINICAL NOTES & PRESCRIPTION BUILDER --- */}
       {selectedAppt && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '650px' }}>
-            <div className="modal-header">
-              <h3><FileText size={20} /> Clinical Consultation Notes — {selectedAppt.patient.name}</h3>
-              <button className="btn-close" onClick={() => setSelectedAppt(null)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><FileText size={18} /> Clinical Notes — {selectedAppt.patient.name}</h3>
+              <button className="alert-close" onClick={() => setSelectedAppt(null)}><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSubmitPostVisit} className="admin-form">
+            <form onSubmit={handleSubmitPostVisit}>
               <div className="form-group">
-                <label>Clinical Consultation Notes *</label>
+                <label className="form-label">Clinical Consultation Notes *</label>
                 <textarea
+                  className="textarea-text"
                   rows={4}
                   value={doctorNotes}
                   onChange={(e) => setDoctorNotes(e.target.value)}
-                  placeholder="Record diagnostic findings, treatment plan, and prescription instructions..."
+                  placeholder="Record diagnostic findings, clinical evaluation, and medication instructions..."
                   required
                 />
-                <span className="notice-text">
-                  🤖 AI will convert your clinical notes into a patient-friendly summary and extract structured medication schedules for automated background reminders.
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.3rem', display: 'block' }}>
+                  🤖 AI will convert notes into an empathetic patient summary and extract medication schedules.
                 </span>
               </div>
 
               {/* Prescription Items Builder */}
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label><Pill size={16} /> Prescription Medications List</label>
+                  <label className="form-label"><Pill size={14} /> Prescribed Medications</label>
                   <button type="button" className="btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }} onClick={addPrescriptionItem}>
-                    <Plus size={14} /> Add Medication
+                    <Plus size={14} /> Add Drug
                   </button>
                 </div>
 
                 {prescriptionItems.map((item, idx) => (
-                  <div key={idx} className="form-grid" style={{ gridTemplateColumns: '2fr 1fr 2fr 1fr auto', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1fr auto', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <input
+                      className="input-text"
                       type="text"
-                      placeholder="Drug (Amoxicillin)"
+                      placeholder="Medication (Amoxicillin)"
                       value={item.name}
                       onChange={(e) => {
                         const updated = [...prescriptionItems];
@@ -674,6 +711,7 @@ export const DoctorPortal: React.FC = () => {
                       }}
                     />
                     <input
+                      className="input-text"
                       type="text"
                       placeholder="Dosage (500mg)"
                       value={item.dosage}
@@ -684,6 +722,7 @@ export const DoctorPortal: React.FC = () => {
                       }}
                     />
                     <input
+                      className="input-text"
                       type="text"
                       placeholder="Frequency (TID)"
                       value={item.frequency}
@@ -694,6 +733,7 @@ export const DoctorPortal: React.FC = () => {
                       }}
                     />
                     <input
+                      className="input-text"
                       type="number"
                       placeholder="Days"
                       min={1}
@@ -705,7 +745,7 @@ export const DoctorPortal: React.FC = () => {
                       }}
                     />
                     {prescriptionItems.length > 1 && (
-                      <button type="button" className="btn-icon-logout" onClick={() => removePrescriptionItem(idx)}>
+                      <button type="button" className="btn-secondary" style={{ color: '#8C2734', padding: '0.5rem' }} onClick={() => removePrescriptionItem(idx)}>
                         <Trash2 size={16} />
                       </button>
                     )}
@@ -713,10 +753,10 @@ export const DoctorPortal: React.FC = () => {
                 ))}
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setSelectedAppt(null)}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={isSubmittingNotes}>
-                  <Send size={16} /> {isSubmittingNotes ? 'Generating AI Summary...' : 'Save & Generate AI Patient Summary'}
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setSelectedAppt(null)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={isSubmittingNotes}>
+                  <Send size={16} /> {isSubmittingNotes ? 'Saving...' : 'Save Notes & Generate AI Summary'}
                 </button>
               </div>
             </form>

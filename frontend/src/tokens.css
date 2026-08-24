@@ -1,0 +1,82 @@
+/* ==========================================================================
+   HEALTHCARE APPOINTMENT MANAGER - DESIGN SYSTEM TOKENS
+   Inspired by Editorial Patient Dashboard & Cardiology Treatment History View
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. COLOR PALETTE
+     ------------------------------------------------------------------------ */
+  /* Main Canvas & Surface Backgrounds */
+  --color-bg-primary: #F1EFEA;        /* Warm cream/bone background */
+  --color-bg-secondary: #E7E4DC;      /* Slightly deeper cream container */
+  --color-surface-sage: #DCDCC8;      /* Muted sage/olive alternate surface for clinical history */
+  --color-surface-white: #FFFFFF;     /* Pure white for content cards */
+
+  /* Hero High-Contrast Containers */
+  --color-hero-bg: #1B1B1B;           /* Near-black hero card fill */
+  --color-hero-surface: #242424;      /* Elevated dark card/button fill */
+  --color-hero-border: rgba(255, 255, 255, 0.12);
+
+  /* Warm Accent (Gold / Mustard) - Used sparingly for active states & highlights */
+  --color-accent-gold: #D9B466;       /* Warm mustard/gold accent */
+  --color-accent-gold-hover: #C5A052; /* Hover state for gold accent */
+  --color-accent-gold-light: #F8F3E6; /* Soft gold tint fill */
+  --color-accent-gold-text: #4A3A13;  /* Dark text for gold background */
+
+  /* Neutral Typography Colors */
+  --color-text-main: #141414;         /* High-contrast dark text */
+  --color-text-secondary: #5A5852;    /* Muted body & label text */
+  --color-text-muted: #8C8980;        /* Subtitle & timestamp text */
+  --color-text-light: #FFFFFF;        /* Crisp white text for dark hero cards */
+  --color-text-light-muted: #A8A59E;  /* Dimmed text for dark hero cards */
+
+  /* Categorization & Status Pill Pastels (Used ONLY for small pill/badge chips) */
+  --color-tag-blue-bg: #E3F0F7;       --color-tag-blue-text: #1E4E67;   /* Consultations / Meds */
+  --color-tag-pink-bg: #F9E4E6;       --color-tag-pink-text: #822734;   /* Urgent / Flagged */
+  --color-tag-green-bg: #E2F2E5;      --color-tag-green-text: #1B562B;   /* Completed / Normal */
+  --color-tag-amber-bg: #FAF0D9;      --color-tag-amber-text: #785210;   /* Pending / Medium */
+
+  /* Borders & Dividers */
+  --color-border-subtle: rgba(20, 20, 20, 0.08);
+  --color-border-medium: rgba(20, 20, 20, 0.16);
+
+  /* ------------------------------------------------------------------------
+     2. TYPOGRAPHY & SCALE
+     ------------------------------------------------------------------------ */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Editorial Tight-Tracked Numbers & Headlines */
+  --font-stat-hero: 800 4.25rem/1.05 var(--font-sans);    /* 68px Editorial Hero Stat */
+  --font-stat-lg: 800 3.0rem/1.1 var(--font-sans);        /* 48px Large Stat */
+  --font-stat-md: 700 2.0rem/1.2 var(--font-sans);        /* 32px Medium Stat */
+
+  /* Section & Card Headings */
+  --font-heading-xl: 700 2.25rem/1.2 var(--font-sans);    /* 36px Primary Page Title */
+  --font-heading-lg: 700 1.5rem/1.3 var(--font-sans);     /* 24px Section Header */
+  --font-heading-md: 600 1.125rem/1.4 var(--font-sans);   /* 18px Card Title */
+
+  /* Body & Labels */
+  --font-body-md: 400 0.9375rem/1.6 var(--font-sans);     /* 15px Body text */
+  --font-body-sm: 400 0.8125rem/1.5 var(--font-sans);     /* 13px Secondary body */
+  --font-label-caps: 700 0.6875rem/1.2 var(--font-sans);  /* 11px Uppercase Tracking-Wider Label */
+
+  /* ------------------------------------------------------------------------
+     3. CORNER RADIUS & SHADOWS
+     ------------------------------------------------------------------------ */
+  --radius-hero: 28px;               /* Dominant Hero Card Radius */
+  --radius-card: 20px;               /* Standard Content Card Radius */
+  --radius-pill: 9999px;             /* Pill Buttons & Category Tags */
+  --radius-icon: 14px;               /* Icon Rail / Action Button Radius */
+
+  /* Elevation & Shadows */
+  --shadow-hero: 0 24px 48px -12px rgba(15, 15, 15, 0.35);
+  --shadow-card: 0 4px 20px -2px rgba(20, 20, 20, 0.04);
+  --shadow-hover: 0 12px 32px -6px rgba(20, 20, 20, 0.08);
+
+  /* ------------------------------------------------------------------------
+     4. LAYOUT GEOMETRY & BREAKPOINTS
+     ------------------------------------------------------------------------ */
+  --rail-width: 80px;                /* Desktop Fixed Left Navigation Rail */
+  --topbar-height: 72px;             /* Utility Header Height */
+}

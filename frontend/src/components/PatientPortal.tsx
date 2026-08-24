@@ -3,18 +3,14 @@ import {
   Search,
   Calendar,
   Clock,
-  Briefcase,
   AlertCircle,
   CheckCircle,
   Stethoscope,
   Send,
   User,
-  Activity,
   FileText,
   X,
   LogOut,
-  Lock,
-  Mail,
   Pill,
   CalendarCheck,
   RotateCcw
@@ -86,10 +82,10 @@ export const PatientPortal: React.FC = () => {
 
   // Auth form state (Login vs Register)
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [authEmail, setAuthEmail] = useState<string>('alice.patient@example.com');
-  const [authPassword, setAuthPassword] = useState<string>('PatientSecret123!');
-  const [authName, setAuthName] = useState<string>('Alice Patient');
-  const [authPhone, setAuthPhone] = useState<string>('+1 (555) 234-5678');
+  const [authEmail, setAuthEmail] = useState<string>('patient@healthcare.com');
+  const [authPassword, setAuthPassword] = useState<string>('Password123!');
+  const [authName, setAuthName] = useState<string>('Jane Doe');
+  const [authPhone, setAuthPhone] = useState<string>('+1 (555) 0199');
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
 
   // Search & Doctor Selection State
@@ -405,7 +401,6 @@ export const PatientPortal: React.FC = () => {
     setRescheduleDate(selectedDate);
     setSelectedRescheduleSlot(null);
 
-    // Fetch slots for reschedule
     try {
       const doctorProfileId = (appt.doctor as any).id || (appt.doctor as any).doctorProfile?.id;
       if (doctorProfileId) {
@@ -455,40 +450,28 @@ export const PatientPortal: React.FC = () => {
 
   const upcomingAppointments = myAppointments.filter((a) => a.status === 'BOOKED');
   const pastAppointments = myAppointments.filter((a) => a.status !== 'BOOKED');
+  const nextAppt = upcomingAppointments[0];
 
   return (
-    <div className="admin-portal-container">
-      {/* Top Banner */}
-      <div
-        className="admin-header-card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(30, 41, 59, 0.7) 100%)',
-          borderColor: 'rgba(59, 130, 246, 0.3)',
-        }}
-      >
-        <div className="admin-header-brand">
-          <div className="admin-badge-icon" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa' }}>
-            <Stethoscope size={28} />
-          </div>
+    <div>
+      {/* Top Banner Alert & Header Pill */}
+      {patientUser && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h2>CareSync Patient Appointment & Health Portal</h2>
-            <p>Book doctor appointments, complete pre-visit symptom questionnaires, and view AI post-visit summaries & medication schedules.</p>
+            <span className="pill-tag pill-blue">Active Patient</span>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '0.2rem' }}>Welcome, {patientUser.name}</h1>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={handleConnectGoogleCalendar} title="Connect Google Calendar">
+              <CalendarCheck size={16} /> Sync Google Calendar
+            </button>
+            <button className="btn-secondary" onClick={handleLogout} style={{ color: '#8C2734' }}>
+              <LogOut size={16} /> Sign Out
+            </button>
           </div>
         </div>
-
-        {patientUser ? (
-          <div className="admin-user-pill">
-            <User size={18} />
-            <span>{patientUser.name} (<strong>PATIENT</strong>)</span>
-            <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={handleConnectGoogleCalendar} title="Connect Google Calendar">
-              <CalendarCheck size={14} /> Connect Google Calendar
-            </button>
-            <button className="btn-icon-logout" onClick={handleLogout} title="Logout">
-              <LogOut size={16} />
-            </button>
-          </div>
-        ) : null}
-      </div>
+      )}
 
       {/* Alerts */}
       {error && (
@@ -509,75 +492,79 @@ export const PatientPortal: React.FC = () => {
 
       {/* Login / Register Card if Not Authenticated */}
       {!token ? (
-        <div className="card auth-card" style={{ maxWidth: '480px', margin: '2rem auto' }}>
-          <div className="auth-card-header">
-            <User size={24} />
-            <h3>{isRegistering ? 'Create Patient Account' : 'Patient Sign In'}</h3>
-            <p>{isRegistering ? 'Register to book appointments and track prescriptions.' : 'Log into your patient portal.'}</p>
+        <div className="card-white" style={{ maxWidth: '480px', margin: '2rem auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div className="card-icon-wrapper" style={{ margin: '0 auto 1rem auto' }}>
+              <User size={24} />
+            </div>
+            <h2 className="card-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
+              {isRegistering ? 'Create Patient Account' : 'Patient Sign In'}
+            </h2>
+            <p className="card-desc" style={{ textAlign: 'center' }}>
+              {isRegistering ? 'Register to book appointments and view prescriptions.' : 'Log into your patient portal.'}
+            </p>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="admin-form">
+          <form onSubmit={handleAuthSubmit}>
             {isRegistering && (
               <>
                 <div className="form-group">
-                  <label>Full Name *</label>
+                  <label className="form-label">Full Name *</label>
                   <input
+                    className="input-text"
                     type="text"
                     value={authName}
                     onChange={(e) => setAuthName(e.target.value)}
-                    placeholder="Alice Patient"
+                    placeholder="Jane Doe"
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label className="form-label">Phone Number</label>
                   <input
+                    className="input-text"
                     type="text"
                     value={authPhone}
                     onChange={(e) => setAuthPhone(e.target.value)}
-                    placeholder="+1 (555) 234-5678"
+                    placeholder="+1 (555) 0199"
                   />
                 </div>
               </>
             )}
 
             <div className="form-group">
-              <label>Email Address *</label>
-              <div className="input-wrapper">
-                <Mail size={16} />
-                <input
-                  type="email"
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  placeholder="patient@example.com"
-                  required
-                />
-              </div>
+              <label className="form-label">Email Address *</label>
+              <input
+                className="input-text"
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="patient@healthcare.com"
+                required
+              />
             </div>
 
             <div className="form-group">
-              <label>Password *</label>
-              <div className="input-wrapper">
-                <Lock size={16} />
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                />
-              </div>
+              <label className="form-label">Password *</label>
+              <input
+                className="input-text"
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Password"
+                required
+              />
             </div>
 
-            <button type="submit" className="btn-primary" disabled={isAuthLoading} style={{ justifyContent: 'center', width: '100%' }}>
+            <button type="submit" className="btn-primary" disabled={isAuthLoading} style={{ width: '100%' }}>
               {isAuthLoading ? 'Processing...' : isRegistering ? 'Register Account' : 'Sign In'}
             </button>
 
-            <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem' }}>
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ border: 'none', background: 'none', color: 'var(--primary-color)', cursor: 'pointer' }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
                 onClick={() => setIsRegistering(!isRegistering)}
               >
                 {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Register Now"}
@@ -586,66 +573,90 @@ export const PatientPortal: React.FC = () => {
           </form>
         </div>
       ) : (
-        /* Patient Main Dashboard Tabs */
+        /* Patient Portal Authenticated View */
         <div>
+          {/* 1. HERO CARD PATTERN: Next Appointment Countdown / Active Care Summary */}
+          <section className="hero-card">
+            <div className="hero-card-header">
+              <div>
+                <div className="hero-subtitle">Primary Patient Focus</div>
+                <h2 className="hero-title">
+                  {nextAppt ? `Upcoming Visit: Dr. ${nextAppt.doctor.user.name}` : 'Ready for your next consultation?'}
+                </h2>
+              </div>
+              <span className="hero-badge">
+                {nextAppt ? 'CONFIRMED APPOINTMENT' : 'PREVENTIVE CARE'}
+              </span>
+            </div>
+
+            {nextAppt ? (
+              <div>
+                <div className="hero-number">
+                  {new Date(nextAppt.slotStartTime).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                </div>
+                <div className="hero-meta">
+                  <span>⏰ {new Date(nextAppt.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>👨‍⚕️ {nextAppt.doctor.specialisation || 'Specialist'}</span>
+                  <span>📧 {nextAppt.doctor.user.email}</span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="hero-number-sm">No Active Booking</div>
+                <p style={{ color: 'var(--color-text-light-muted)', marginTop: '0.5rem' }}>
+                  Search doctors below to schedule your next appointment and get AI-assisted pre-visit triage.
+                </p>
+              </div>
+            )}
+          </section>
+
           {/* Sub Navigation Bar */}
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+          <div className="utility-pill-bar" style={{ marginBottom: '2rem' }}>
             <button
-              className={`btn-secondary ${patientTab === 'book' ? 'active-tab' : ''}`}
+              className={`utility-pill ${patientTab === 'book' ? 'active' : ''}`}
               onClick={() => setPatientTab('book')}
-              style={{
-                borderColor: patientTab === 'book' ? 'var(--primary-color)' : undefined,
-                background: patientTab === 'book' ? 'rgba(6, 182, 212, 0.15)' : undefined,
-                color: patientTab === 'book' ? 'var(--primary-color)' : undefined,
-              }}
             >
-              <Search size={18} /> Search Doctors & Book Slot
+              <Search size={16} /> Search Doctors & Book
             </button>
 
             <button
-              className={`btn-secondary ${patientTab === 'history' ? 'active-tab' : ''}`}
+              className={`utility-pill ${patientTab === 'history' ? 'active' : ''}`}
               onClick={() => {
                 setPatientTab('history');
                 fetchMyAppointments();
               }}
-              style={{
-                borderColor: patientTab === 'history' ? 'var(--primary-color)' : undefined,
-                background: patientTab === 'history' ? 'rgba(6, 182, 212, 0.15)' : undefined,
-                color: patientTab === 'history' ? 'var(--primary-color)' : undefined,
-              }}
             >
-              <CalendarCheck size={18} /> My Appointments & Prescriptions ({myAppointments.length})
+              <CalendarCheck size={16} /> Clinical Timeline & Prescriptions ({myAppointments.length})
             </button>
           </div>
 
           {/* TAB 1: SEARCH DOCTORS & BOOK SLOT */}
           {patientTab === 'book' && (
-            <div className="patient-booking-layout" style={{ display: 'grid', gridTemplateColumns: selectedDoctor ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: selectedDoctor ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
               
               {/* Doctor Search & List */}
               <div>
-                <div className="search-bar-wrapper" style={{ marginBottom: '1rem' }}>
-                  <div className="input-wrapper">
-                    <Search size={18} />
-                    <input
-                      type="text"
-                      value={searchSpec}
-                      onChange={(e) => {
-                        setSearchSpec(e.target.value);
-                        fetchDoctors(e.target.value);
-                      }}
-                      placeholder="Search doctors by specialisation (e.g. Cardiology, Neurology, Dermatology)..."
-                    />
-                  </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label className="form-label">Search Specialists</label>
+                  <input
+                    className="input-text"
+                    type="text"
+                    value={searchSpec}
+                    onChange={(e) => {
+                      setSearchSpec(e.target.value);
+                      fetchDoctors(e.target.value);
+                    }}
+                    placeholder="Search by specialisation (e.g. Cardiology, Internal Medicine, Dermatology)..."
+                  />
                 </div>
 
-                <div className="doctors-list-vertical" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="card-grid">
                   {loadingDoctors ? (
-                    <p style={{ color: 'var(--text-muted)' }}>Searching doctors...</p>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>Searching available doctors...</p>
                   ) : doctors.length === 0 ? (
-                    <div className="empty-state">
-                      <Stethoscope size={36} />
-                      <p>No doctors found matching "{searchSpec}"</p>
+                    <div className="card-white" style={{ textAlign: 'center', padding: '2rem' }}>
+                      <Stethoscope size={36} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
+                      <p>No doctors matching "{searchSpec}"</p>
                     </div>
                   ) : (
                     doctors.map((doc) => {
@@ -653,39 +664,42 @@ export const PatientPortal: React.FC = () => {
                       return (
                         <div
                           key={doc.id}
-                          className="doctor-card"
+                          className="card-white"
                           style={{
-                            borderColor: isSelected ? 'var(--primary-color)' : undefined,
-                            background: isSelected ? 'rgba(6, 182, 212, 0.1)' : undefined,
+                            borderColor: isSelected ? 'var(--color-accent-gold)' : undefined,
+                            borderWidth: isSelected ? '2px' : '1px',
                             cursor: 'pointer',
                           }}
                           onClick={() => handleSelectDoctor(doc)}
                         >
-                          <div className="doc-card-header">
-                            <div className="doc-avatar">
-                              <Stethoscope size={24} />
+                          <div className="card-header">
+                            <div className="card-icon-wrapper">
+                              <Stethoscope size={22} />
                             </div>
                             <div>
-                              <h3>{doc.name}</h3>
-                              <p className="doc-email">{doc.email}</p>
+                              <h3 className="card-title">{doc.name}</h3>
+                              <span className="pill-tag pill-blue">
+                                {doc.doctorProfile?.specialisation || 'General Medicine'}
+                              </span>
                             </div>
                           </div>
 
-                          <div className="doc-meta-tags">
-                            <span className="meta-tag spec-tag">
-                              <Briefcase size={14} /> {doc.doctorProfile?.specialisation || 'General Medicine'}
-                            </span>
-                            <span className="meta-tag slot-tag">
-                              <Clock size={14} /> {doc.doctorProfile?.slotDurationMinutes || 30} mins / slot
+                          <p className="card-desc" style={{ fontSize: '0.85rem' }}>
+                            {doc.doctorProfile?.bio || 'Experienced medical practitioner dedicated to comprehensive patient care.'}
+                          </p>
+
+                          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                            <span className="pill-tag pill-amber">
+                              <Clock size={12} /> {doc.doctorProfile?.slotDurationMinutes || 30} mins / slot
                             </span>
                           </div>
 
                           <button
                             className="btn-primary"
-                            style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}
+                            style={{ width: '100%' }}
                             onClick={() => handleSelectDoctor(doc)}
                           >
-                            {isSelected ? 'Selected for Booking' : 'Select Doctor & View Slots'}
+                            {isSelected ? 'Selected — View Time Slots' : 'Select Doctor & View Slots'}
                           </button>
                         </div>
                       );
@@ -696,10 +710,10 @@ export const PatientPortal: React.FC = () => {
 
               {/* Slot Picker & Symptom Form */}
               {selectedDoctor && (
-                <div className="card">
+                <div className="card-white">
                   <div className="card-header">
                     <div className="card-icon-wrapper">
-                      <Calendar size={24} />
+                      <Calendar size={22} />
                     </div>
                     <div>
                       <h3 className="card-title">Select Time Slot</h3>
@@ -707,9 +721,10 @@ export const PatientPortal: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                    <label>Target Date</label>
+                  <div className="form-group">
+                    <label className="form-label">Target Date</label>
                     <input
+                      className="input-text"
                       type="date"
                       value={selectedDate}
                       onChange={(e) => handleDateChange(e.target.value)}
@@ -717,21 +732,21 @@ export const PatientPortal: React.FC = () => {
                   </div>
 
                   {loadingSlots ? (
-                    <p style={{ color: 'var(--text-muted)' }}>Calculating available slots...</p>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>Calculating available slots...</p>
                   ) : isLeaveDay ? (
                     <div className="alert-box alert-error">
                       <AlertCircle size={20} />
-                      <span>Doctor is on scheduled leave on this date. Please select another date.</span>
+                      <span>Doctor is on scheduled leave on this date. Please pick another date.</span>
                     </div>
                   ) : !isWorkingDay ? (
-                    <div className="alert-box alert-warning-banner">
+                    <div className="alert-box alert-error">
                       <AlertCircle size={20} />
-                      <span>Doctor does not have working hours scheduled on this day of the week.</span>
+                      <span>Doctor does not have working hours scheduled on this day.</span>
                     </div>
                   ) : slots.length === 0 ? (
-                    <p style={{ color: 'var(--text-muted)' }}>No slots available on this date.</p>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>No slots available on this date.</p>
                   ) : (
-                    <div className="slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
                       {slots.map((slot) => {
                         const startTimeStr = new Date(slot.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         const isSelected = selectedSlot?.slotStartTime === slot.slotStartTime;
@@ -742,19 +757,19 @@ export const PatientPortal: React.FC = () => {
                             disabled={!slot.isAvailable}
                             onClick={() => handleSelectSlot(slot)}
                             style={{
-                              padding: '0.5rem',
-                              borderRadius: '8px',
+                              padding: '0.6rem 0.4rem',
+                              borderRadius: '12px',
                               border: '1px solid',
-                              borderColor: isSelected ? 'var(--primary-color)' : slot.isAvailable ? 'var(--border-color)' : 'rgba(255, 255, 255, 0.05)',
-                              background: isSelected ? 'rgba(6, 182, 212, 0.25)' : slot.isAvailable ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.3)',
-                              color: isSelected ? 'var(--primary-color)' : slot.isAvailable ? 'var(--text-main)' : 'var(--text-dim)',
+                              borderColor: isSelected ? 'var(--color-accent-gold)' : slot.isAvailable ? 'var(--color-border-medium)' : 'rgba(0, 0, 0, 0.05)',
+                              background: isSelected ? 'var(--color-accent-gold)' : slot.isAvailable ? 'var(--color-surface-white)' : 'rgba(0, 0, 0, 0.04)',
+                              color: isSelected ? 'var(--color-accent-gold-text)' : slot.isAvailable ? 'var(--color-text-main)' : 'var(--color-text-muted)',
                               cursor: slot.isAvailable ? 'pointer' : 'not-allowed',
-                              fontWeight: isSelected ? 700 : 500,
+                              fontWeight: isSelected ? 800 : 600,
                               fontSize: '0.85rem',
                             }}
                           >
                             {startTimeStr}
-                            {!slot.isAvailable && <span style={{ display: 'block', fontSize: '0.7rem', color: '#f87171' }}>Unavailable</span>}
+                            {!slot.isAvailable && <span style={{ display: 'block', fontSize: '0.65rem', color: '#8C2734' }}>Booked</span>}
                           </button>
                         );
                       })}
@@ -762,27 +777,30 @@ export const PatientPortal: React.FC = () => {
                   )}
 
                   {selectedSlot && (
-                    <form onSubmit={handleBookAppointment} className="admin-form" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                    <form onSubmit={handleBookAppointment} style={{ paddingTop: '1rem', borderTop: '1px solid var(--color-border-subtle)' }}>
                       {holdTimeRemaining > 0 && (
-                        <div className="status-pill online" style={{ marginBottom: '1rem', width: '100%', justifyContent: 'center' }}>
-                          <span>⏱️ Temporary Reservation Active — Slot Held for <strong>{formatTimer(holdTimeRemaining)}</strong></span>
+                        <div className="pill-tag pill-green" style={{ marginBottom: '1rem', width: '100%', justifyContent: 'center', padding: '0.5rem' }}>
+                          ⏱️ Temporary Reservation — Slot Held for <strong>{formatTimer(holdTimeRemaining)}</strong>
                         </div>
                       )}
                       <div className="form-group">
-                        <label><FileText size={16} /> Pre-Visit Symptoms Questionnaire (AI Processed)</label>
+                        <label className="form-label">
+                          <FileText size={14} /> Pre-Visit Symptoms Intake (AI Processed)
+                        </label>
                         <textarea
+                          className="textarea-text"
                           rows={3}
                           value={symptoms}
                           onChange={(e) => setSymptoms(e.target.value)}
-                          placeholder="Describe your symptoms (e.g. onset, severity, location, pain levels)..."
+                          placeholder="Describe symptoms, onset, severity, location, or pain..."
                         />
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                          🤖 AI will automatically summarize your symptoms for the doctor prior to your visit.
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.3rem', display: 'block' }}>
+                          🤖 AI will automatically extract chief complaints and urgency levels for your doctor.
                         </span>
                       </div>
 
-                      <button type="submit" className="btn-primary" disabled={isBooking} style={{ justifyContent: 'center', width: '100%' }}>
-                        <Send size={18} /> {isBooking ? 'Processing Booking...' : 'Confirm & Book Appointment'}
+                      <button type="submit" className="btn-primary" disabled={isBooking} style={{ width: '100%' }}>
+                        <Send size={16} /> {isBooking ? 'Booking...' : 'Confirm & Reserve Appointment'}
                       </button>
                     </form>
                   )}
@@ -791,73 +809,65 @@ export const PatientPortal: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: MY APPOINTMENTS HISTORY */}
+          {/* TAB 2: MY APPOINTMENTS & BRANCHING CLINICAL TIMELINE */}
           {patientTab === 'history' && (
             <div>
               {loadingHistory ? (
-                <p style={{ color: 'var(--text-muted)' }}>Loading appointment history...</p>
+                <p style={{ color: 'var(--color-text-secondary)' }}>Loading clinical visit history...</p>
               ) : myAppointments.length === 0 ? (
-                <div className="empty-state">
-                  <Calendar size={48} />
-                  <h3>No Appointments Booked Yet</h3>
-                  <p>Search doctors and book a slot to view your upcoming consultations here.</p>
+                <div className="card-white" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <Calendar size={48} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
+                  <h3>No Visits Recorded</h3>
+                  <p className="card-desc">Search doctors and book a slot to start tracking your clinical consultations.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                   
-                  {/* Upcoming Appointments Section */}
+                  {/* Upcoming Appointments */}
                   <div>
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-color)', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Clock size={20} /> Upcoming Consultations ({upcomingAppointments.length})
                     </h3>
 
                     {upcomingAppointments.length === 0 ? (
-                      <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>No upcoming appointments scheduled.</p>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>No upcoming consultations scheduled.</p>
                     ) : (
-                      <div className="doctors-grid" style={{ gridTemplateColumns: '1fr' }}>
+                      <div className="card-grid">
                         {upcomingAppointments.map((appt) => (
-                          <div className="doctor-card" key={appt.id} style={{ borderColor: 'var(--primary-color)' }}>
-                            <div className="doc-card-header" style={{ justifyContent: 'space-between', width: '100%' }}>
-                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <div className="doc-avatar">
-                                  <Stethoscope size={24} />
+                          <div className="card-white" key={appt.id}>
+                            <div className="card-header" style={{ justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                <div className="card-icon-wrapper">
+                                  <Stethoscope size={22} />
                                 </div>
                                 <div>
-                                  <h3>Dr. {appt.doctor.user.name}</h3>
-                                  <p className="doc-email">📧 {appt.doctor.user.email}</p>
-                                  <p className="slot-time" style={{ marginTop: '0.2rem' }}>
-                                    <Calendar size={14} /> {new Date(appt.slotStartTime).toLocaleString()}
-                                  </p>
+                                  <h3 className="card-title">Dr. {appt.doctor.user.name}</h3>
+                                  <p className="card-desc" style={{ margin: 0 }}>{appt.doctor.specialisation || 'General Medicine'}</p>
                                 </div>
                               </div>
-
-                              <span className="status-pill online">UPCOMING</span>
+                              <span className="pill-tag pill-blue">UPCOMING</span>
                             </div>
 
-                            {/* Symptom Form Summary */}
+                            <div style={{ background: 'var(--color-bg-primary)', padding: '0.85rem', borderRadius: '12px', marginBottom: '1rem' }}>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700 }}>DATE & TIME</div>
+                              <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{new Date(appt.slotStartTime).toLocaleString()}</div>
+                            </div>
+
                             {appt.symptomForm && (
-                              <div className="doc-bio" style={{ borderLeftColor: '#60a5fa', background: 'rgba(0, 0, 0, 0.3)' }}>
-                                <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa', marginBottom: '0.4rem' }}>
-                                  <Activity size={16} /> Pre-Visit Symptom Form
-                                </h4>
-                                <p><strong>Symptoms:</strong> "{appt.symptomForm.rawSymptoms}"</p>
-                                {appt.symptomForm.urgencyLevel && (
-                                  <p style={{ marginTop: '0.3rem' }}>
-                                    <strong>Urgency Assessment:</strong>{' '}
-                                    <span className={`status-pill ${appt.symptomForm.urgencyLevel === 'HIGH' ? 'offline' : 'online'}`}>
-                                      {appt.symptomForm.urgencyLevel}
-                                    </span>
-                                  </p>
-                                )}
+                              <div style={{ marginBottom: '1rem' }}>
+                                <span className="pill-tag pill-amber" style={{ marginBottom: '0.4rem' }}>
+                                  AI Intake Submitted
+                                </span>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>"{appt.symptomForm.rawSymptoms}"</p>
                               </div>
                             )}
 
-                            <div className="doc-card-actions" style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-                              <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => openRescheduleModal(appt)}>
-                                <RotateCcw size={16} /> Reschedule Slot
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => openRescheduleModal(appt)}>
+                                <RotateCcw size={14} /> Reschedule
                               </button>
-                              <button className="btn-icon-logout" style={{ flex: 1, padding: '0.5rem', justifyContent: 'center', borderRadius: '8px', color: '#f87171' }} onClick={() => handleCancelAppointment(appt.id)}>
-                                <X size={16} /> Cancel Appointment
+                              <button className="btn-secondary" style={{ color: '#8C2734' }} onClick={() => handleCancelAppointment(appt.id)}>
+                                <X size={14} /> Cancel
                               </button>
                             </div>
                           </div>
@@ -866,70 +876,62 @@ export const PatientPortal: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Past & Completed Appointments Section */}
+                  {/* Past Visits Branching Timeline on Sage Surface */}
                   <div>
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '1rem' }}>
-                      <CheckCircle size={20} /> Past Consultations & AI Summaries ({pastAppointments.length})
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <CheckCircle size={20} /> Treatment & Prescription Visit Timeline ({pastAppointments.length})
                     </h3>
 
-                    {pastAppointments.length === 0 ? (
-                      <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>No past consultations recorded.</p>
-                    ) : (
-                      <div className="doctors-grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="surface-sage">
+                      <div className="timeline-container">
                         {pastAppointments.map((appt) => {
                           const note = appt.postVisitNote;
-
                           return (
-                            <div className="doctor-card" key={appt.id} style={{ borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                              <div className="doc-card-header" style={{ justifyContent: 'space-between', width: '100%' }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                  <div className="doc-avatar" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
-                                    <Stethoscope size={24} />
-                                  </div>
+                            <div key={appt.id} className="timeline-item">
+                              <div className="timeline-node" />
+                              <div className="timeline-card">
+                                <div className="timeline-date">
+                                  {new Date(appt.slotStartTime).toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                  <h4 className="timeline-title">Consultation with Dr. {appt.doctor.user.name}</h4>
+                                  <span className={`pill-tag ${appt.status === 'COMPLETED' ? 'pill-green' : 'pill-pink'}`}>
+                                    {appt.status}
+                                  </span>
+                                </div>
+
+                                {note ? (
                                   <div>
-                                    <h3>Dr. {appt.doctor.user.name}</h3>
-                                    <p className="slot-time">
-                                      <Calendar size={14} /> {new Date(appt.slotStartTime).toLocaleDateString()}
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '0.75rem' }}>
+                                      {note.patientSummary || note.doctorNotes}
                                     </p>
-                                  </div>
-                                </div>
 
-                                <span className={`status-pill ${appt.status === 'COMPLETED' ? 'online' : 'offline'}`}>
-                                  {appt.status}
-                                </span>
-                              </div>
-
-                              {/* AI Patient Summary & Prescriptions */}
-                              {note ? (
-                                <div className="doc-bio" style={{ borderLeftColor: '#34d399', background: 'rgba(16, 185, 129, 0.08)' }}>
-                                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', marginBottom: '0.4rem' }}>
-                                    <Activity size={16} /> AI Patient-Friendly Summary
-                                  </h4>
-                                  <p>{note.patientSummary || note.doctorNotes}</p>
-
-                                  {note.prescription && note.prescription.length > 0 && (
-                                    <div style={{ marginTop: '0.75rem' }}>
-                                      <strong><Pill size={14} /> Prescribed Medication Schedule:</strong>
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.4rem' }}>
-                                        {note.prescription.map((med, idx) => (
-                                          <span className="meta-tag slot-tag" key={idx}>
-                                            💊 <strong>{med.name}</strong> ({med.dosage}) — {med.frequency} [{med.durationDays || 7} days]
-                                          </span>
-                                        ))}
+                                    {note.prescription && note.prescription.length > 0 && (
+                                      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--color-border-subtle)' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                                          <Pill size={12} /> Prescribed Medications:
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                          {note.prescription.map((med, idx) => (
+                                            <span key={idx} className="pill-tag pill-blue">
+                                              💊 <strong>{med.name}</strong> ({med.dosage}) — {med.frequency} [{med.durationDays || 7}d]
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <p style={{ color: 'var(--text-dim)', fontSize: '0.88rem', fontStyle: 'italic', marginTop: '0.5rem' }}>
-                                  Post-visit summary pending doctor entry.
-                                </p>
-                              )}
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                                    Visit complete. Clinical summary processing by doctor.
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -940,17 +942,18 @@ export const PatientPortal: React.FC = () => {
 
       {/* --- RESCHEDULE MODAL --- */}
       {rescheduleAppt && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <h3><RotateCcw size={20} /> Reschedule Appointment</h3>
-              <button className="btn-close" onClick={() => setRescheduleAppt(null)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><RotateCcw size={18} /> Reschedule Appointment</h3>
+              <button className="alert-close" onClick={() => setRescheduleAppt(null)}><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleRescheduleSubmit} className="admin-form">
+            <form onSubmit={handleRescheduleSubmit}>
               <div className="form-group">
-                <label>Select New Date</label>
+                <label className="form-label">New Date</label>
                 <input
+                  className="input-text"
                   type="date"
                   value={rescheduleDate}
                   onChange={(e) => {
@@ -966,8 +969,8 @@ export const PatientPortal: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Select New Slot</label>
-                <div className="slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                <label className="form-label">Select New Time Slot</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
                   {rescheduleSlots.map((slot) => {
                     const timeStr = new Date(slot.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     const isSelected = selectedRescheduleSlot?.slotStartTime === slot.slotStartTime;
@@ -982,9 +985,9 @@ export const PatientPortal: React.FC = () => {
                           padding: '0.5rem',
                           borderRadius: '8px',
                           border: '1px solid',
-                          borderColor: isSelected ? 'var(--primary-color)' : 'var(--border-color)',
-                          background: isSelected ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                          color: isSelected ? 'var(--primary-color)' : 'var(--text-main)',
+                          borderColor: isSelected ? 'var(--color-accent-gold)' : 'var(--color-border-medium)',
+                          background: isSelected ? 'var(--color-accent-gold)' : 'var(--color-surface-white)',
+                          color: isSelected ? 'var(--color-accent-gold-text)' : 'var(--color-text-main)',
                           cursor: slot.isAvailable ? 'pointer' : 'not-allowed',
                         }}
                       >
@@ -995,10 +998,10 @@ export const PatientPortal: React.FC = () => {
                 </div>
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setRescheduleAppt(null)}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={isRescheduling || !selectedRescheduleSlot}>
-                  {isRescheduling ? 'Rescheduling...' : 'Confirm Reschedule'}
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setRescheduleAppt(null)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={isRescheduling || !selectedRescheduleSlot}>
+                  {isRescheduling ? 'Rescheduling...' : 'Confirm'}
                 </button>
               </div>
             </form>

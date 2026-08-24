@@ -6,19 +6,11 @@ import {
   CalendarX,
   Stethoscope,
   Clock,
-  Briefcase,
   AlertTriangle,
   CheckCircle,
   X,
   RefreshCw,
-  Lock,
-  LogOut,
-  Mail,
-  User,
-  Search,
-  Calendar,
-  Send,
-  Phone
+  LogOut
 } from 'lucide-react';
 
 interface LeaveDay {
@@ -134,8 +126,8 @@ export const AdminPortal: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState<string>('admin@example.com');
-  const [loginPassword, setLoginPassword] = useState<string>('AdminSecret123!');
+  const [loginEmail, setLoginEmail] = useState<string>('admin@healthcare.com');
+  const [loginPassword, setLoginPassword] = useState<string>('Password123!');
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Create Doctor Modal state
@@ -169,13 +161,11 @@ export const AdminPortal: React.FC = () => {
   const [affectedAppointments, setAffectedAppointments] = useState<AffectedAppointment[]>([]);
   const [showLeaveResultModal, setShowLeaveResultModal] = useState<boolean>(false);
 
-  // Quick auto-clear alerts
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(null), 5000);
   };
 
-  // 1. Fetch current profile & doctors if token exists
   useEffect(() => {
     if (token) {
       fetchAdminProfile();
@@ -200,7 +190,6 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 2. Fetch list of doctors (GET /api/admin/doctors)
   const fetchDoctors = async () => {
     setLoading(true);
     setError(null);
@@ -220,7 +209,6 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 3. Admin Login handler
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -234,7 +222,6 @@ export const AdminPortal: React.FC = () => {
 
       let data = await res.json();
 
-      // Auto-register as ADMIN if credentials don't exist yet (for demo convenience)
       if (res.status === 401 && data.message?.includes('Invalid')) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
@@ -275,7 +262,6 @@ export const AdminPortal: React.FC = () => {
     setDoctors([]);
   };
 
-  // 4. Create Doctor Handler (POST /api/admin/doctors)
   const handleCreateDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -310,14 +296,13 @@ export const AdminPortal: React.FC = () => {
         bio: '',
       });
       setCreateWorkingHours(getDefaultWeeklyHours());
-      showSuccess(`Dr. ${data.doctor.name} created successfully!`);
+      showSuccess(`Dr. ${data.doctor.name} onboarded successfully!`);
       fetchDoctors();
     } catch (err: any) {
       setError(err.message || 'Failed to create doctor');
     }
   };
 
-  // 5. Open & Update Doctor Handler (PUT /api/admin/doctors/:doctorId)
   const openEditModal = (doctor: DoctorUser) => {
     setEditingDoctor(doctor);
     setEditForm({
@@ -362,7 +347,6 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // 6. Mark Leave Handler (POST /api/admin/doctors/:doctorId/leave)
   const openLeaveModal = (doctor: DoctorUser) => {
     setLeaveDoctor(doctor);
     const tomorrow = new Date();
@@ -403,7 +387,6 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // Filtered Doctors list
   const filteredDoctors = doctors.filter((doc) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -413,106 +396,23 @@ export const AdminPortal: React.FC = () => {
     return nameMatch || emailMatch || specMatch;
   });
 
-  // Working Hours Schedule Editor Subcomponent
-  const renderWorkingHoursEditor = (
-    weeklyState: WeeklyWorkingHours,
-    setWeeklyState: React.Dispatch<React.SetStateAction<WeeklyWorkingHours>>
-  ) => {
-    const handleToggleDay = (dayKey: string) => {
-      setWeeklyState((prev) => ({
-        ...prev,
-        [dayKey]: {
-          ...prev[dayKey],
-          active: !prev[dayKey].active,
-        },
-      }));
-    };
-
-    const handleTimeChange = (dayKey: string, field: 'start' | 'end', val: string) => {
-      setWeeklyState((prev) => ({
-        ...prev,
-        [dayKey]: {
-          ...prev[dayKey],
-          [field]: val,
-        },
-      }));
-    };
-
-    return (
-      <div className="working-hours-builder">
-        <h4 className="builder-title"><Clock size={16} /> Weekly Working Hours Schedule</h4>
-        <p className="builder-sub">Configure active working days and daily consultation start/end hours.</p>
-        
-        <div className="hours-grid">
-          {DAYS_OF_WEEK.map(({ key, label }) => {
-            const dayConfig = weeklyState[key] || { active: false, start: '09:00', end: '17:00' };
-            return (
-              <div className={`hours-row ${dayConfig.active ? 'active-day' : 'inactive-day'}`} key={key}>
-                <div className="day-label-group">
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={dayConfig.active}
-                      onChange={() => handleToggleDay(key)}
-                    />
-                    <span className="slider" />
-                  </label>
-                  <span className="day-name">{label}</span>
-                </div>
-
-                {dayConfig.active ? (
-                  <div className="time-pickers">
-                    <input
-                      type="time"
-                      value={dayConfig.start}
-                      onChange={(e) => handleTimeChange(key, 'start', e.target.value)}
-                      className="time-input"
-                    />
-                    <span className="time-sep">to</span>
-                    <input
-                      type="time"
-                      value={dayConfig.end}
-                      onChange={(e) => handleTimeChange(key, 'end', e.target.value)}
-                      className="time-input"
-                    />
-                  </div>
-                ) : (
-                  <span className="off-day-pill">Day Off</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="admin-portal-container">
-      {/* Top Banner / Auth State */}
-      <div className="admin-header-card">
-        <div className="admin-header-brand">
-          <div className="admin-badge-icon">
-            <ShieldCheck size={28} />
-          </div>
+    <div>
+      {/* Top Header */}
+      {adminUser && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h2>Admin Portal — Doctor Management</h2>
-            <p>Manage doctor profiles, working schedules, slot durations, and mark scheduled leave days.</p>
+            <span className="pill-tag pill-amber">Role Administration</span>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '0.2rem' }}>System Admin Portal</h1>
           </div>
+
+          <button className="btn-secondary" onClick={handleLogout} style={{ color: '#8C2734' }}>
+            <LogOut size={16} /> Sign Out Admin
+          </button>
         </div>
+      )}
 
-        {adminUser ? (
-          <div className="admin-user-pill">
-            <User size={18} />
-            <span>{adminUser.name} (<strong>ADMIN</strong>)</span>
-            <button className="btn-icon-logout" onClick={handleLogout} title="Logout">
-              <LogOut size={16} />
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Dynamic Alerts */}
+      {/* Alerts */}
       {error && (
         <div className="alert-box alert-error">
           <AlertTriangle size={20} />
@@ -531,159 +431,149 @@ export const AdminPortal: React.FC = () => {
 
       {/* Login Screen if Not Authenticated */}
       {!token ? (
-        <div className="card auth-card">
-          <div className="auth-card-header">
-            <Lock size={24} />
-            <h3>Admin Authentication Required</h3>
-            <p>Sign in with Admin credentials to access doctor management endpoints.</p>
+        <div className="card-white" style={{ maxWidth: '480px', margin: '2rem auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div className="card-icon-wrapper" style={{ margin: '0 auto 1rem auto' }}>
+              <ShieldCheck size={24} />
+            </div>
+            <h2 className="card-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>Admin Authentication</h2>
+            <p className="card-desc" style={{ textAlign: 'center' }}>Sign in with Admin credentials to manage doctors and leave schedules.</p>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="admin-form">
+          <form onSubmit={handleAdminLogin}>
             <div className="form-group">
-              <label>Admin Email</label>
-              <div className="input-wrapper">
-                <Mail size={16} />
-                <input
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="admin@example.com"
-                  required
-                />
-              </div>
+              <label className="form-label">Admin Email</label>
+              <input
+                className="input-text"
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="admin@healthcare.com"
+                required
+              />
             </div>
 
             <div className="form-group">
-              <label>Admin Password</label>
-              <div className="input-wrapper">
-                <Lock size={16} />
-                <input
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                />
-              </div>
+              <label className="form-label">Password</label>
+              <input
+                className="input-text"
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Password"
+                required
+              />
             </div>
 
-            <button type="submit" className="btn-primary" disabled={isLoggingIn}>
+            <button type="submit" className="btn-primary" disabled={isLoggingIn} style={{ width: '100%' }}>
               {isLoggingIn ? 'Authenticating...' : 'Sign In as Admin'}
             </button>
           </form>
         </div>
       ) : (
-        /* Main Dashboard Content */
-        <div className="dashboard-content">
-          {/* Action Bar & Search Filter */}
-          <div className="dashboard-actions-bar">
-            <div className="search-filter-box">
-              <Search size={18} className="search-icon" />
+        /* Authenticated Admin Dashboard */
+        <div>
+          {/* 1. HERO CARD PATTERN: Doctor Roster & Onboarding Focus */}
+          <section className="hero-card">
+            <div className="hero-card-header">
+              <div>
+                <div className="hero-subtitle">Clinical Staff Management</div>
+                <h2 className="hero-title">Doctor Roster & Leave Schedule Audit</h2>
+              </div>
+              <span className="hero-badge">ROLE-BASED ADMIN</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
+              <div>
+                <div className="hero-number">{doctors.length}</div>
+                <p style={{ color: 'var(--color-text-light-muted)', fontSize: '0.9rem' }}>Active Onboarded Doctors</p>
+              </div>
+
+              <div>
+                <div className="hero-number-sm">
+                  {doctors.reduce((acc, d) => acc + (d.doctorProfile?.leaveDays?.length || 0), 0)}
+                </div>
+                <p style={{ color: 'var(--color-text-light-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>Scheduled Leave Days</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Search & Actions Utility Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ flex: 1, maxWidth: '400px' }}>
               <input
+                className="input-text"
                 type="text"
-                placeholder="Search by doctor name, email, or specialisation..."
+                placeholder="Search doctors by name, email, or specialisation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              {searchQuery && (
-                <button className="search-clear-btn" onClick={() => setSearchQuery('')}>
-                  <X size={14} />
-                </button>
-              )}
             </div>
 
-            <div className="stats-pill">
-              <Stethoscope size={18} />
-              <span><strong>{filteredDoctors.length}</strong> / {doctors.length} Doctors</span>
-            </div>
-
-            <div className="actions-right">
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button className="btn-secondary" onClick={fetchDoctors} disabled={loading}>
-                <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh
+                <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh List
               </button>
               <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-                <UserPlus size={18} /> Onboard New Doctor
+                <UserPlus size={16} /> Onboard New Doctor
               </button>
             </div>
           </div>
 
-          {/* Doctors Grid */}
+          {/* Doctors Grid Cards */}
           {loading && doctors.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '3rem' }}>
-              Loading doctor profiles from server...
-            </p>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Loading doctor list...</p>
           ) : filteredDoctors.length === 0 ? (
-            <div className="empty-state">
-              <Stethoscope size={48} />
+            <div className="card-white" style={{ textAlign: 'center', padding: '3rem' }}>
+              <Stethoscope size={48} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
               <h3>No Doctors Found</h3>
-              <p>
-                {searchQuery
-                  ? `No doctors match your query "${searchQuery}".`
-                  : 'Click "Onboard New Doctor" above to register your first doctor.'}
-              </p>
+              <p className="card-desc">Click "Onboard New Doctor" to register your first clinical profile.</p>
             </div>
           ) : (
-            <div className="doctors-grid">
+            <div className="card-grid">
               {filteredDoctors.map((doc) => {
                 const profile = doc.doctorProfile;
-                const parsedHours = parseWorkingHoursJson(profile?.workingHours);
-                const activeDaysCount = Object.values(parsedHours).filter((d) => d.active).length;
-
                 return (
-                  <div className="doctor-card" key={doc.id}>
-                    <div className="doc-card-header">
-                      <div className="doc-avatar">
-                        <Stethoscope size={24} />
+                  <div key={doc.id} className="card-white">
+                    <div className="card-header">
+                      <div className="card-icon-wrapper">
+                        <Stethoscope size={22} />
                       </div>
-                      <div className="doc-info">
-                        <h3>{doc.name}</h3>
-                        <p className="doc-email"><Mail size={14} /> {doc.email}</p>
-                        {doc.phone && <p className="doc-phone"><Phone size={14} /> {doc.phone}</p>}
+                      <div>
+                        <h3 className="card-title">{doc.name}</h3>
+                        <span className="pill-tag pill-blue">
+                          {profile?.specialisation || 'General Medicine'}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="doc-meta-tags">
-                      <span className="meta-tag spec-tag">
-                        <Briefcase size={14} /> {profile?.specialisation || 'General'}
-                      </span>
-                      <span className="meta-tag slot-tag">
-                        <Clock size={14} /> {profile?.slotDurationMinutes || 30} mins / slot
-                      </span>
-                    </div>
+                    <p className="card-desc" style={{ fontSize: '0.85rem' }}>
+                      📧 {doc.email} {doc.phone ? `| 📞 ${doc.phone}` : ''}
+                    </p>
 
-                    {/* Working Hours Summary Pill */}
-                    <div className="working-hours-summary">
-                      <Clock size={14} className="summary-icon" />
-                      <span>
-                        <strong>{activeDaysCount} Days/wk</strong> ({DAYS_OF_WEEK.filter(({ key }) => parsedHours[key]?.active).map(({ label }) => label.slice(0, 3)).join(', ')})
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                      <span className="pill-tag pill-amber">
+                        <Clock size={12} /> {profile?.slotDurationMinutes || 30} mins / slot
                       </span>
+                      {profile?.leaveDays && profile.leaveDays.length > 0 && (
+                        <span className="pill-tag pill-pink">
+                          <CalendarX size={12} /> {profile.leaveDays.length} Leaves
+                        </span>
+                      )}
                     </div>
 
                     {profile?.bio && (
-                      <p className="doc-bio">{profile.bio}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '1rem', fontStyle: 'italic' }}>
+                        "{profile.bio}"
+                      </p>
                     )}
 
-                    {/* Scheduled Leave Days */}
-                    {profile?.leaveDays && profile.leaveDays.length > 0 && (
-                      <div className="leave-days-section">
-                        <span className="leave-title"><CalendarX size={14} /> Scheduled Leave Days ({profile.leaveDays.length}):</span>
-                        <div className="leave-pills">
-                          {profile.leaveDays.map((leave) => (
-                            <span className="leave-pill" key={leave.id} title={leave.reason || 'Scheduled Doctor Leave'}>
-                              <Calendar size={12} /> {new Date(leave.date).toLocaleDateString()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Card Actions */}
-                    <div className="doc-card-actions">
-                      <button className="btn-action edit" onClick={() => openEditModal(doc)}>
-                        <Edit size={16} /> Edit Profile & Schedule
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button className="btn-secondary" style={{ flex: 1 }} onClick={() => openEditModal(doc)}>
+                        <Edit size={14} /> Edit Profile
                       </button>
-                      <button className="btn-action leave" onClick={() => openLeaveModal(doc)}>
-                        <CalendarX size={16} /> Mark Leave Day
+                      <button className="btn-secondary" style={{ color: '#8C2734' }} onClick={() => openLeaveModal(doc)}>
+                        <CalendarX size={14} /> Mark Leave
                       </button>
                     </div>
                   </div>
@@ -696,191 +586,165 @@ export const AdminPortal: React.FC = () => {
 
       {/* --- MODAL 1: Create Doctor Modal --- */}
       {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-lg">
-            <div className="modal-header">
-              <h3><UserPlus size={20} /> Onboard New Doctor Profile</h3>
-              <button className="btn-close" onClick={() => setShowCreateModal(false)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><UserPlus size={18} /> Onboard New Doctor Profile</h3>
+              <button className="alert-close" onClick={() => setShowCreateModal(false)}><X size={18} /></button>
             </div>
-            <form onSubmit={handleCreateDoctor} className="admin-form">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Doctor Full Name *</label>
-                  <input
-                    type="text"
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                    placeholder="Dr. Sarah Connor"
-                    required
-                  />
-                </div>
 
-                <div className="form-group">
-                  <label>Email Address *</label>
-                  <input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                    placeholder="doctor@healthcare.com"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Password *</label>
-                  <input
-                    type="password"
-                    value={createForm.password}
-                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                    placeholder="Minimum 6 characters"
-                    required
-                    minLength={6}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Phone Number</label>
-                  <input
-                    type="text"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    placeholder="+1 555-0199"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Specialisation *</label>
-                  <input
-                    type="text"
-                    value={createForm.specialisation}
-                    onChange={(e) => setCreateForm({ ...createForm, specialisation: e.target.value })}
-                    placeholder="Cardiology, Dermatology, General Medicine"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Slot Duration (Minutes) *</label>
-                  <select
-                    value={createForm.slotDurationMinutes}
-                    onChange={(e) => setCreateForm({ ...createForm, slotDurationMinutes: Number(e.target.value) })}
-                  >
-                    <option value={15}>15 Minutes</option>
-                    <option value={30}>30 Minutes (Default)</option>
-                    <option value={45}>45 Minutes</option>
-                    <option value={60}>60 Minutes</option>
-                  </select>
-                </div>
+            <form onSubmit={handleCreateDoctor}>
+              <div className="form-group">
+                <label className="form-label">Doctor Full Name *</label>
+                <input
+                  className="input-text"
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="Dr. Sarah Smith"
+                  required
+                />
               </div>
 
               <div className="form-group">
-                <label>Biography / Professional Notes</label>
+                <label className="form-label">Email Address *</label>
+                <input
+                  className="input-text"
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  placeholder="dr.smith@healthcare.com"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Password *</label>
+                <input
+                  className="input-text"
+                  type="password"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  placeholder="Minimum 6 characters"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Specialisation *</label>
+                <input
+                  className="input-text"
+                  type="text"
+                  value={createForm.specialisation}
+                  onChange={(e) => setCreateForm({ ...createForm, specialisation: e.target.value })}
+                  placeholder="Cardiology, General Medicine, Dermatology"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Slot Duration (Minutes) *</label>
+                <select
+                  className="input-select"
+                  value={createForm.slotDurationMinutes}
+                  onChange={(e) => setCreateForm({ ...createForm, slotDurationMinutes: Number(e.target.value) })}
+                >
+                  <option value={15}>15 Minutes</option>
+                  <option value={30}>30 Minutes</option>
+                  <option value={45}>45 Minutes</option>
+                  <option value={60}>60 Minutes</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Biography / Background</label>
                 <textarea
+                  className="textarea-text"
                   rows={2}
                   value={createForm.bio}
                   onChange={(e) => setCreateForm({ ...createForm, bio: e.target.value })}
-                  placeholder="Doctor's qualifications, clinical expertise, and background."
+                  placeholder="Clinical experience, background..."
                 />
               </div>
 
-              {/* Working Hours Builder */}
-              {renderWorkingHoursEditor(createWorkingHours, setCreateWorkingHours)}
-
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Onboard Doctor Profile</button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Onboard Doctor</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 2: Edit Doctor Profile & Schedule Modal --- */}
+      {/* --- MODAL 2: Edit Doctor Modal --- */}
       {editingDoctor && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-lg">
-            <div className="modal-header">
-              <h3><Edit size={20} /> Edit Profile — {editingDoctor.name}</h3>
-              <button className="btn-close" onClick={() => setEditingDoctor(null)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '550px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><Edit size={18} /> Edit Profile — {editingDoctor.name}</h3>
+              <button className="alert-close" onClick={() => setEditingDoctor(null)}><X size={18} /></button>
             </div>
-            <form onSubmit={handleUpdateDoctor} className="admin-form">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    required
-                  />
-                </div>
 
-                <div className="form-group">
-                  <label>Phone Number</label>
-                  <input
-                    type="text"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Specialisation</label>
-                  <input
-                    type="text"
-                    value={editForm.specialisation}
-                    onChange={(e) => setEditForm({ ...editForm, specialisation: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Slot Duration (Minutes)</label>
-                  <select
-                    value={editForm.slotDurationMinutes}
-                    onChange={(e) => setEditForm({ ...editForm, slotDurationMinutes: Number(e.target.value) })}
-                  >
-                    <option value={15}>15 Minutes</option>
-                    <option value={30}>30 Minutes</option>
-                    <option value={45}>45 Minutes</option>
-                    <option value={60}>60 Minutes</option>
-                  </select>
-                </div>
-              </div>
-
+            <form onSubmit={handleUpdateDoctor}>
               <div className="form-group">
-                <label>Biography</label>
-                <textarea
-                  rows={2}
-                  value={editForm.bio}
-                  onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                <label className="form-label">Full Name</label>
+                <input
+                  className="input-text"
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
                 />
               </div>
 
-              {/* Working Hours Builder */}
-              {renderWorkingHoursEditor(editWorkingHours, setEditWorkingHours)}
+              <div className="form-group">
+                <label className="form-label">Specialisation</label>
+                <input
+                  className="input-text"
+                  type="text"
+                  value={editForm.specialisation}
+                  onChange={(e) => setEditForm({ ...editForm, specialisation: e.target.value })}
+                  required
+                />
+              </div>
 
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setEditingDoctor(null)}>Cancel</button>
-                <button type="submit" className="btn-primary">Save Profile & Schedule</button>
+              <div className="form-group">
+                <label className="form-label">Slot Duration (Minutes)</label>
+                <select
+                  className="input-select"
+                  value={editForm.slotDurationMinutes}
+                  onChange={(e) => setEditForm({ ...editForm, slotDurationMinutes: Number(e.target.value) })}
+                >
+                  <option value={15}>15 Minutes</option>
+                  <option value={30}>30 Minutes</option>
+                  <option value={45}>45 Minutes</option>
+                  <option value={60}>60 Minutes</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditingDoctor(null)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Profile</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 3: Mark Leave Day Modal --- */}
+      {/* --- MODAL 3: Mark Leave Modal --- */}
       {leaveDoctor && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3><CalendarX size={20} /> Schedule Leave Day — {leaveDoctor.name}</h3>
-              <button className="btn-close" onClick={() => setLeaveDoctor(null)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><CalendarX size={18} /> Schedule Leave — {leaveDoctor.name}</h3>
+              <button className="alert-close" onClick={() => setLeaveDoctor(null)}><X size={18} /></button>
             </div>
-            <form onSubmit={handleMarkLeave} className="admin-form">
+
+            <form onSubmit={handleMarkLeave}>
               <div className="form-group">
-                <label>Leave Date *</label>
+                <label className="form-label">Leave Date *</label>
                 <input
+                  className="input-text"
                   type="date"
                   value={leaveDate}
                   onChange={(e) => setLeaveDate(e.target.value)}
@@ -889,85 +753,58 @@ export const AdminPortal: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Reason for Leave</label>
+                <label className="form-label">Reason</label>
                 <input
+                  className="input-text"
                   type="text"
                   value={leaveReason}
                   onChange={(e) => setLeaveReason(e.target.value)}
-                  placeholder="Medical Conference, Personal Leave, Annual Break, etc."
+                  placeholder="Conference, Personal Leave..."
                 />
               </div>
 
-              <div className="notice-box">
-                <AlertTriangle size={18} color="#06b6d4" />
-                <p>
-                  Setting a leave day will check for existing patient bookings on that date. Any conflicting bookings will be cancelled and patients will receive notification emails automatically.
-                </p>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setLeaveDoctor(null)}>Cancel</button>
-                <button type="submit" className="btn-danger">Confirm & Schedule Leave</button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setLeaveDoctor(null)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, background: '#8C2734', color: '#FFF' }}>Confirm Leave</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 4: Affected Appointments Conflict Report Modal --- */}
+      {/* --- MODAL 4: Leave Audit Conflict Result Modal --- */}
       {showLeaveResultModal && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-lg">
-            <div className="modal-header">
-              <h3><AlertTriangle size={20} color="#f59e0b" /> Booking Conflict & Audit Report</h3>
-              <button className="btn-close" onClick={() => setShowLeaveResultModal(false)}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card-white" style={{ width: '90%', maxWidth: '550px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="card-title"><AlertTriangle size={18} color="#D9B466" /> Leave Audit & Conflict Report</h3>
+              <button className="alert-close" onClick={() => setShowLeaveResultModal(false)}><X size={18} /></button>
             </div>
 
             {affectedAppointments.length === 0 ? (
-              <div className="affected-result-clean">
-                <CheckCircle size={48} color="#34d399" />
-                <h4>No Conflicting Bookings</h4>
-                <p>There are no existing patient appointments scheduled on this leave date. The schedule has been updated with zero disruptions.</p>
+              <div style={{ textAlign: 'center', padding: '1.5rem' }}>
+                <CheckCircle size={40} style={{ color: '#1B562B', marginBottom: '0.5rem' }} />
+                <h4>Zero Booking Conflicts</h4>
+                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>No existing patient appointments coincided with this leave date.</p>
               </div>
             ) : (
-              <div className="affected-result-list">
-                <div className="alert-warning-banner">
-                  <AlertTriangle size={20} />
-                  <span>
-                    <strong>{affectedAppointments.length}</strong> patient booking(s) coincided with this leave date and were automatically cancelled.
-                  </span>
-                </div>
-
-                <div className="affected-items">
+              <div>
+                <p style={{ fontSize: '0.9rem', color: '#8C2734', marginBottom: '1rem', fontWeight: 700 }}>
+                  ⚠️ {affectedAppointments.length} conflicting booking(s) were automatically cancelled and patients notified.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
                   {affectedAppointments.map((appt) => (
-                    <div className="affected-card" key={appt.id}>
-                      <div className="affected-header">
-                        <span className="patient-name"><User size={16} /> {appt.patient.name}</span>
-                        <span className="status-badge cancelled">{appt.status}</span>
-                      </div>
-                      <div className="patient-details-grid">
-                        <p><Mail size={14} /> {appt.patient.email}</p>
-                        {appt.patient.phone && <p><Phone size={14} /> {appt.patient.phone}</p>}
-                        <p className="slot-time">
-                          <Clock size={14} /> Slot: {new Date(appt.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {new Date(appt.slotEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
+                    <div key={appt.id} style={{ background: 'var(--color-bg-primary)', padding: '0.75rem', borderRadius: '8px' }}>
+                      <strong>{appt.patient.name}</strong> ({appt.patient.email}) — Slot: {new Date(appt.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   ))}
-                </div>
-
-                <div className="email-dispatch-notice">
-                  <Send size={18} color="#34d399" />
-                  <span>
-                    <strong>Automated Notification Dispatched:</strong> Patient leave-cancellation emails (with rebooking instructions) have been dispatched via Nodemailer/SMTP and logged to the notification audit database.
-                  </span>
                 </div>
               </div>
             )}
 
-            <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowLeaveResultModal(false)}>Acknowledge & Close</button>
-            </div>
+            <button className="btn-primary" style={{ width: '100%', marginTop: '1.5rem' }} onClick={() => setShowLeaveResultModal(false)}>
+              Acknowledge & Close
+            </button>
           </div>
         </div>
       )}
