@@ -25,19 +25,33 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+
   /**
-   * Fetches backend health check payload from /api/health endpoint.
+   * Fetches backend health check payload from API endpoint with fallback retries.
    */
   const checkBackendHealth = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/health');
+      let response;
+      const targetUrl = API_BASE_URL.endsWith('/health')
+        ? API_BASE_URL
+        : `${API_BASE_URL.replace(/\/$/, '')}/health`;
+
+      try {
+        response = await fetch(targetUrl);
+      } catch {
+        // Direct local backend fallback
+        response = await fetch('http://localhost:5001/api/health');
+      }
+
       if (!response.ok) {
         throw new Error(`Server returned HTTP status ${response.status}`);
       }
       const data: HealthStatus = await response.json();
       setHealth(data);
+      setError(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to communicate with backend API';
       setError(message);
@@ -49,6 +63,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     checkBackendHealth();
+    // Auto-ping health every 15 seconds
+    const interval = setInterval(() => {
+      checkBackendHealth();
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
