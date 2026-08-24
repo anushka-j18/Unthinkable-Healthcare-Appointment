@@ -349,6 +349,14 @@ export const DoctorPortal: React.FC = () => {
             <h2 className="card-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>Doctor Portal Sign In</h2>
             <p className="card-desc" style={{ textAlign: 'center' }}>Authenticate with clinical credentials to view queues and submit post-visit notes.</p>
           </div>
+
+          {error && (
+            <div className="alert-box alert-error" style={{ marginBottom: '1.25rem' }}>
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleDoctorLogin}>
             <div className="form-group">
               <label className="form-label">Doctor Email</label>

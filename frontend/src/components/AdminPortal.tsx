@@ -440,6 +440,13 @@ export const AdminPortal: React.FC = () => {
             <p className="card-desc" style={{ textAlign: 'center' }}>Sign in with Admin credentials to manage doctors and leave schedules.</p>
           </div>
 
+          {error && (
+            <div className="alert-box alert-error" style={{ marginBottom: '1.25rem' }}>
+              <AlertTriangle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleAdminLogin}>
             <div className="form-group">
               <label className="form-label">Admin Email</label>

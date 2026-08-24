@@ -514,6 +514,13 @@ export const PatientPortal: React.FC = () => {
             </p>
           </div>
 
+          {error && (
+            <div className="alert-box alert-error" style={{ marginBottom: '1.25rem' }}>
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleAuthSubmit}>
             {isRegistering && (
               <>
@@ -574,7 +581,15 @@ export const PatientPortal: React.FC = () => {
                 type="button"
                 className="btn-secondary"
                 style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
-                onClick={() => setIsRegistering(!isRegistering)}
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError(null);
+                  if (!isRegistering) {
+                    setAuthEmail(`patient.${Date.now().toString().slice(-4)}@healthcare.com`);
+                  } else {
+                    setAuthEmail('patient@healthcare.com');
+                  }
+                }}
               >
                 {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Register Now"}
               </button>
