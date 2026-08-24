@@ -8,8 +8,11 @@
     "start": "concurrently -n \"backend,frontend\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
+    "vercel-build": "npm --prefix backend run prisma:generate && npm --prefix backend run build && npm --prefix frontend run build",
+    "postinstall": "npm --prefix backend run prisma:generate",
     "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
     "prisma:generate": "npm --prefix backend run prisma:generate"
   },
