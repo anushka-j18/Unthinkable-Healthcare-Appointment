@@ -136,10 +136,27 @@ export async function calculateAvailableSlots(doctorIdInput: string, dateStr: st
 
   // 2. Parse Day of Week & Working Hours
   const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayName = daysOfWeek[targetDate.getUTCDay()];
+  const dayIndex = targetDate.getUTCDay();
+  const dayName = daysOfWeek[dayIndex];
 
-  const workingHoursConfig = doctorProfile.workingHours as Record<string, { start: string; end: string } | undefined>;
-  const dayConfig = workingHoursConfig ? workingHoursConfig[dayName] : undefined;
+  const workingHoursConfig = doctorProfile.workingHours as any;
+  let dayConfig: { start: string; end: string } | undefined = undefined;
+
+  if (workingHoursConfig) {
+    if (workingHoursConfig[dayName] && workingHoursConfig[dayName].start && workingHoursConfig[dayName].end) {
+      dayConfig = workingHoursConfig[dayName];
+    } else if (workingHoursConfig.start && workingHoursConfig.end) {
+      const allowedDays = Array.isArray(workingHoursConfig.days) ? workingHoursConfig.days : [1, 2, 3, 4, 5];
+      if (allowedDays.includes(dayIndex)) {
+        dayConfig = { start: workingHoursConfig.start, end: workingHoursConfig.end };
+      }
+    }
+  }
+
+  // Fallback default working hours (09:00 - 17:00 Mon-Fri) if no custom day config
+  if (!dayConfig && dayIndex >= 1 && dayIndex <= 5) {
+    dayConfig = { start: '09:00', end: '17:00' };
+  }
 
   if (!dayConfig || !dayConfig.start || !dayConfig.end) {
     return {
