@@ -16,6 +16,29 @@ Features AI-assisted pre-visit intake triage, automated post-visit clinical summ
 
 ---
 
+## 🔑 Demo Login Credentials & Auth Verification
+
+All authentication pathways (**Sign In** and **Sign Up / Registration**) are fully implemented, tested, and active. You can log in using pre-seeded test accounts or register a brand-new account in real time.
+
+### 👤 Pre-Seeded Test Accounts
+
+| Role | Email Address | Password | Account Details | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Patient** | `patient@healthcare.com` | `Password123!` | Jane Doe | 🟢 Active |
+| **Doctor (Cardiology)** | `dr.smith@healthcare.com` | `Password123!` | Dr. Sarah Smith | 🟢 Active |
+| **Doctor (General Medicine)** | `dr.patel@healthcare.com` | `Password123!` | Dr. Rajesh Patel | 🟢 Active |
+| **Doctor (Dermatology)** | `dr.chen@healthcare.com` | `Password123!` | Dr. Emily Chen | 🟢 Active |
+| **Doctor (Pediatrics)** | `dr.johnson@healthcare.com` | `Password123!` | Dr. Michael Johnson | 🟢 Active |
+| **Admin** | `admin@healthcare.com` | `Password123!` | System Administrator | 🟢 Active |
+
+### ⚡ Authentication & Registration Functionality Status
+
+- 🟢 **Patient Sign Up / Registration**: **100% Working**. Users can click *"Don't have an account? Register Now"* on the Patient Portal to register with name, email, phone, and password. Accounts are saved to PostgreSQL with bcrypt password hashing and an instant JWT token.
+- 🟢 **Doctor Onboarding & Auth**: **100% Working**. Doctors can sign in with seeded credentials or be onboarded dynamically by the System Admin with custom specialisations, slot durations, and working hours.
+- 🟢 **Admin Authentication**: **100% Working**. System administrators log in to manage doctors, set leave schedules, and inspect automated cancellation conflict reports.
+
+---
+
 ## 1. Local Development & Setup Guide
 
 ### 📋 Prerequisites
