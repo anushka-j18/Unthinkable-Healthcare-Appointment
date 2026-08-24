@@ -203,6 +203,7 @@ export async function calculateAvailableSlots(doctorIdInput: string, dateStr: st
   // 4. Divide working window into discrete slots
   const durationMs = doctorProfile.slotDurationMinutes * 60 * 1000;
   const slots: Array<{ slotStartTime: string; slotEndTime: string; isAvailable: boolean }> = [];
+  const now = new Date();
 
   let currentSlotStart = new Date(windowStart);
 
@@ -210,11 +211,12 @@ export async function calculateAvailableSlots(doctorIdInput: string, dateStr: st
     const currentSlotEnd = new Date(currentSlotStart.getTime() + durationMs);
     const isBooked = bookedTimestamps.has(currentSlotStart.getTime());
     const isHeld = await isSlotHeldByOther(doctorProfile.id, currentSlotStart.toISOString());
+    const isPast = currentSlotStart.getTime() < now.getTime();
 
     slots.push({
       slotStartTime: currentSlotStart.toISOString(),
       slotEndTime: currentSlotEnd.toISOString(),
-      isAvailable: !isBooked && !isHeld,
+      isAvailable: !isBooked && !isHeld && !isPast,
     });
 
     currentSlotStart = new Date(currentSlotStart.getTime() + durationMs);

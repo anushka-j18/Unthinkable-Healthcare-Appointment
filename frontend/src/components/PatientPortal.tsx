@@ -73,6 +73,15 @@ interface Appointment {
   postVisitNote: PostVisitNote | null;
 }
 
+const formatDoctorName = (name?: string) => {
+  if (!name) return 'Doctor';
+  const trimmed = name.trim();
+  if (/^dr\.?\s+/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `Dr. ${trimmed}`;
+};
+
 export const PatientPortal: React.FC = () => {
   const [token, setToken] = useState<string>(localStorage.getItem('patientToken') || '');
   const [patientUser, setPatientUser] = useState<any>(null);
@@ -717,7 +726,7 @@ export const PatientPortal: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="card-title">Select Time Slot</h3>
-                      <p className="card-desc">Dr. {selectedDoctor.name} ({selectedDoctor.doctorProfile?.specialisation})</p>
+                      <p className="card-desc">{formatDoctorName(selectedDoctor.name)} ({selectedDoctor.doctorProfile?.specialisation})</p>
                     </div>
                   </div>
 
@@ -750,6 +759,7 @@ export const PatientPortal: React.FC = () => {
                       {slots.map((slot) => {
                         const startTimeStr = new Date(slot.slotStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         const isSelected = selectedSlot?.slotStartTime === slot.slotStartTime;
+                        const isPast = new Date(slot.slotStartTime).getTime() < Date.now();
 
                         return (
                           <button
@@ -766,10 +776,15 @@ export const PatientPortal: React.FC = () => {
                               cursor: slot.isAvailable ? 'pointer' : 'not-allowed',
                               fontWeight: isSelected ? 800 : 600,
                               fontSize: '0.85rem',
+                              opacity: !slot.isAvailable ? 0.5 : 1,
                             }}
                           >
                             {startTimeStr}
-                            {!slot.isAvailable && <span style={{ display: 'block', fontSize: '0.65rem', color: '#8C2734' }}>Booked</span>}
+                            {!slot.isAvailable && (
+                              <span style={{ display: 'block', fontSize: '0.65rem', color: '#8C2734', fontWeight: 700 }}>
+                                {isPast ? 'Past' : 'Booked'}
+                              </span>
+                            )}
                           </button>
                         );
                       })}
